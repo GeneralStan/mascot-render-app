@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "clutch-mascot-lab",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "/Users/ifeanyi/Sandbox/Clutch", "run", "dev"],
+      "port": 3002
+    }
+  ]
+}

@@ -1,0 +1,211 @@
+{
+  "version": 2,
+  "appId": "clutch-mascot-lab",
+  "state": {
+    "controlRanges": {
+      "armLeft.elbow": {
+        "min": -30,
+        "max": 150
+      },
+      "armLeft.wrist": {
+        "min": -90,
+        "max": 90
+      },
+      "body.lean": {
+        "min": -30,
+        "max": 30
+      },
+      "hair.sweep": {
+        "min": -60,
+        "max": 60
+      },
+      "armLeft.swing": {
+        "min": -90,
+        "max": 170
+      },
+      "armLeft.raise": {
+        "min": -40,
+        "max": 170
+      },
+      "armLeft.straighten": {
+        "min": 0,
+        "max": 100
+      },
+      "armLeft.bandTilt": {
+        "min": -60,
+        "max": 60
+      }
+    },
+    "values": {
+      "export.includeBackground": true,
+      "appearance.background": "#FFFFFF",
+      "canvas.workspaceBackground": "dots",
+      "canvas.aspectRatio": {
+        "height": 9,
+        "mode": "preset",
+        "value": "16:9",
+        "width": 16
+      },
+      "canvas.size.width": 1920,
+      "canvas.size.height": 1080,
+      "canvas.rotationLocked": false,
+      "view.orbit": {
+        "position": [
+          -0.01683293741165464,
+          0.47013431890447444,
+          4.977819841497547
+        ],
+        "up": [
+          0.000317958325941581,
+          0.9955696604896762,
+          -0.09402632618035123
+        ]
+      },
+      "view.scale": 1.5,
+      "body.turn": 0,
+      "body.lean": 0,
+      "body.squash": 0,
+      "body.lift": 0,
+      "body.softness": 48,
+      "body.pivot": {
+        "x": 0,
+        "y": 0
+      },
+      "hair.bend": 0,
+      "hair.sweep": 0,
+      "hair.wave": 0,
+      "hair.wavePhase": 0,
+      "headband.tilt": 0,
+      "face.eyes": "open",
+      "face.mouth": "happy",
+      "armLeft.raise": 0,
+      "armLeft.swing": 0,
+      "armLeft.twist": -71,
+      "armLeft.elbow": 0,
+      "armLeft.wrist": 0,
+      "armLeft.hand": "open",
+      "armLeft.moneyBag": false,
+      "armLeft.flipHand": false,
+      "armLeft.straighten": 0,
+      "armLeft.length": 100,
+      "armLeft.bandTilt": 0,
+      "armRight.raise": 0,
+      "armRight.swing": 0,
+      "armRight.twist": 0,
+      "armRight.elbow": 0,
+      "armRight.wrist": 0,
+      "armRight.hand": "open",
+      "armRight.moneyBag": false,
+      "armRight.flipHand": false,
+      "armRight.straighten": 0,
+      "armRight.length": 100,
+      "armRight.bandTilt": 0,
+      "legLeft.raise": 0,
+      "legLeft.swing": 0,
+      "legLeft.knee": 0,
+      "legLeft.ankle": 0,
+      "legLeft.length": 100,
+      "legRight.raise": 0,
+      "legRight.swing": 0,
+      "legRight.knee": 0,
+      "legRight.ankle": 0,
+      "legRight.length": 100,
+      "light.angle": 160,
+      "shading.visible": true,
+      "shading.size": 1,
+      "shading.highlight": true,
+      "groundShadow.visible": true,
+      "groundShadow.color": {
+        "hex": "#031E19",
+        "opacity": 16
+      },
+      "groundShadow.size": 1,
+      "groundShadow.blur": 6,
+      "castShadow.visible": false,
+      "castShadow.color": {
+        "hex": "#031E19",
+        "opacity": 18
+      },
+      "castShadow.length": 0.6,
+      "castShadow.blur": 4,
+      "dropShadow.visible": false,
+      "dropShadow.color": {
+        "hex": "#C94631",
+        "opacity": 100
+      },
+      "dropShadow.offsetX": 12,
+      "dropShadow.offsetY": 12,
+      "dropShadow.blur": 0,
+      "export.image.format": "png",
+      "export.image.resolution": "4k",
+      "export.video.format": "mp4",
+      "export.video.resolution": "current"
+    },
+    "canvas": {
+      "offset": {
+        "x": -29.246835443037966,
+        "y": 86.0949367088607
+      },
+      "size": {
+        "height": 1080,
+        "unit": "px",
+        "width": 1920
+      },
+      "zoom": 126,
+      "mode": "infinite"
+    },
+    "panels": {
+      "controls": {
+        "collapsedSections": {
+          "drop-shadow": true,
+          "runtime.video-export": true,
+          "body-shading": true,
+          "light": true,
+          "face": true,
+          "leg-left": true,
+          "leg-right": true
+        },
+        "offset": {
+          "x": 0,
+          "y": 0
+        },
+        "collapsed": false,
+        "scrollTop": 0
+      },
+      "layers": {
+        "offset": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "timeline": {
+        "offset": {
+          "x": -32.76550764484978,
+          "y": 0
+        },
+        "extended": true,
+        "snapEdge": "top"
+      },
+      "toolbar": {
+        "offset": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    "timeline": {
+      "currentTimeSeconds": 2,
+      "durationSeconds": 2,
+      "expanded": false,
+      "isLooping": false,
+      "isPlaying": false,
+      "selectedKeyframeId": null,
+      "keyframeGroups": []
+    },
+    "layers": [],
+    "selectedLayerId": null,
+    "mediaAssets": []
+  },
+  "resources": [],
+  "theme": "dark"
+}

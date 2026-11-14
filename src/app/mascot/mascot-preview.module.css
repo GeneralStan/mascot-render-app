@@ -1,0 +1,10 @@
+.preview {
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.orbitSurface {
+  pointer-events: all;
+  touch-action: none;
+}

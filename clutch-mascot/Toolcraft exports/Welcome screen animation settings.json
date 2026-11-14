@@ -1,0 +1,119 @@
+{
+  "appId": "clutch-mascot-lab",
+  "attachments": [],
+  "canvas": {
+    "aspectRatio": {
+      "height": 9,
+      "mode": "preset",
+      "value": "16:9",
+      "width": 16
+    },
+    "mode": "finite",
+    "size": {
+      "height": 1080,
+      "unit": "px",
+      "width": 1920
+    }
+  },
+  "exportedAt": "2026-11-08T10:11:32.156Z",
+  "source": "toolcraft-settings",
+  "timeline": {
+    "currentTimeSeconds": 1.3140680000469211,
+    "durationSeconds": 2,
+    "expanded": false,
+    "isLooping": true,
+    "isPlaying": false
+  },
+  "values": {
+    "export.includeBackground": false,
+    "appearance.background": "#FFFFFF",
+    "canvas.workspaceBackground": "dots",
+    "canvas.rotationLocked": false,
+    "view.orbit": {
+      "position": [
+        0,
+        0,
+        5
+      ],
+      "up": [
+        0,
+        1,
+        0
+      ]
+    },
+    "view.scale": 1.5,
+    "body.lean": -20,
+    "body.squash": 0,
+    "body.lift": 0,
+    "body.softness": 48,
+    "hair.bend": 0,
+    "hair.sweep": 0,
+    "hair.wave": 0,
+    "hair.wavePhase": 0,
+    "headband.tilt": 0,
+    "face.eyes": "open",
+    "face.mouth": "happy",
+    "armLeft.raise": 46,
+    "armLeft.swing": 170,
+    "armLeft.twist": -71,
+    "armLeft.elbow": 30,
+    "armLeft.wrist": -60,
+    "armLeft.flipHand": true,
+    "armLeft.straighten": 92,
+    "armLeft.length": 100,
+    "armLeft.bandTilt": 15,
+    "armRight.raise": 0,
+    "armRight.swing": 0,
+    "armRight.twist": 0,
+    "armRight.elbow": 0,
+    "armRight.wrist": 0,
+    "armRight.flipHand": false,
+    "armRight.straighten": 0,
+    "armRight.length": 100,
+    "armRight.bandTilt": 0,
+    "legLeft.raise": -21,
+    "legLeft.swing": 0,
+    "legLeft.knee": 0,
+    "legLeft.ankle": 0,
+    "legLeft.length": 100,
+    "legRight.raise": 17,
+    "legRight.swing": 0,
+    "legRight.knee": 0,
+    "legRight.ankle": 0,
+    "legRight.length": 100,
+    "light.angle": 30,
+    "shading.visible": true,
+    "shading.style": "outline",
+    "shading.color": "#C94631",
+    "shading.width": 2,
+    "shading.limbs": "outer",
+    "shading.depth": 1,
+    "groundShadow.visible": true,
+    "groundShadow.color": {
+      "hex": "#031E19",
+      "opacity": 16
+    },
+    "groundShadow.size": 1,
+    "groundShadow.blur": 6,
+    "castShadow.visible": false,
+    "castShadow.color": {
+      "hex": "#031E19",
+      "opacity": 18
+    },
+    "castShadow.length": 0.6,
+    "castShadow.blur": 4,
+    "dropShadow.visible": false,
+    "dropShadow.color": {
+      "hex": "#C94631",
+      "opacity": 100
+    },
+    "dropShadow.offsetX": 12,
+    "dropShadow.offsetY": 12,
+    "dropShadow.blur": 0,
+    "export.image.format": "png",
+    "export.image.resolution": "4k",
+    "export.video.format": "mp4",
+    "export.video.resolution": "current"
+  },
+  "version": 3
+}
