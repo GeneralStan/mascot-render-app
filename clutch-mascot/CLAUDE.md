@@ -26,6 +26,10 @@ Artboards:
 - Mascot_Back, from Back.
 - Mascot_Side, from Side: the walk. The far arm and leg aren't drawn; give them the near ones' shapes, behind the body and one step darker. Mascot Lab's SVG export of the side view, posed at the walk's contact pose (near leg and far arm forward, far leg and near arm back), can serve as the starting pose.
 - refs/holding_cash.png is the peak pose of cash_jump (won). It is a picture to match, not a file to import. Open it before animating cash_jump.
+- Tilted views (optional, approved by the user on 2026-11-14): Mascot_Top, Mascot_ThreeQuarterTop, Mascot_Bottom and Mascot_ThreeQuarterBottom. No drawing exists for these angles. Mascot Lab builds them in code from the drawings: it treats the body as a round volume, the headband as a ring round it and the hair as growing from the crown. Build each from Mascot Lab's SVG export at that angle (View gimbal tilted; Turn 30° for the 3/4 ones) and import it as exported, without redrawing. Their group order differs from the level views:
+  - Looking down: Leg_L, Leg_R, Arm_L, Arm_R, Body (head, face), Headband, Hair (strand_1 to strand_5). The hair sits over the headband, growing out of the crown.
+  - Looking up: Arm_L, Arm_R, Body (strands, head, face), Leg_L, Leg_R. The legs grow out of the underside. The headband shows as an arch until about 65° below, then is out of sight.
+- refs/render_*.webp are AI 3D renders the user made from the mascot. They are references for these tilted angles only. Never import or trace them as art.
 
 Part names (as in the V2 frame):
 - Groups: Leg_L, Leg_R, Arm_L, Arm_R, Body, Headband.
@@ -44,6 +48,7 @@ Part names (as in the V2 frame):
   - 3/4: Leg_L, Leg_R, Arm_R, Body, Headband, Arm_L. Arm_L is the near arm, in front of the body.
   - Side, as drawn: Leg_L, Body, Headband, Arm_L. The near arm is in front of the body. Put the far limbs (_R) first, behind everything.
 - On 3/4 and Side the near arm lies over the body at the shoulder. It must look attached, with no outline across the body there.
+- A limb over the body blends into it at any angle. Its outline fades in from nothing at the shoulder (or hip, or the hair at the crown) until the limb leaves the body's edge, and its shade and highlight start past that point. In Rive, give the first stretch of the outline a gradient from transparent to the outline colour.
 
 Pivots: each group starts with 8px dots that mark its joints:
 - shoulder_L, Elbow_L and Wrist_L

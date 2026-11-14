@@ -9,6 +9,10 @@
  *
  * It is then rebuilt around the new centreline, so every strand keeps its drawn
  * width. The root end stays open, planted under the headband.
+ *
+ * The tuft is drawn flat, so seen from straight above it would shrink to a line. Looking down,
+ * it leans back about Hair_base (up to `MASCOT_V2_HAIR_LEAN` straight down), so the strands fan
+ * out over the crown; level views keep it exactly as drawn.
  */
 
 import { hairDeformMap, hairDepthBendMap } from "./mascot-hair";
@@ -38,6 +42,8 @@ const radians = (degrees: number) => (degrees * Math.PI) / 180;
  * would loop them over themselves. Wave is scaled down so its full range stays readable.
  */
 export const MASCOT_V2_WAVE_SCALE = 0.4;
+/** How far the tuft leans back about Hair_base when seen from straight above (radians, 50°). */
+export const MASCOT_V2_HAIR_LEAN = (50 * Math.PI) / 180;
 
 /** The strands in paint order for a turn, back to front. */
 export function strandOrder(yaw: number): MascotV2StrandName[] {
@@ -60,7 +66,13 @@ export function poseV2Strands(camera: MascotV2Camera, pose: MascotV2HairPose): M
   const depthBend = hairDepthBendMap(restBase, height, radians(pose.sweep) * Math.cos(yaw) - radians(pose.bend) * Math.sin(yaw));
   const base = projectedJointsAt(camera.yaw).Hair_base;
   const pivotY = MASCOT_V2_BODY_PIVOT.y;
-  const look = (p: Point): Point => ({ x: p.x, y: pivotY + (p.y - pivotY) * Math.cos(pitch) });
+  // Leaning back moves a point's height above Hair_base into depth behind it, which looking down shows.
+  const lean = MASCOT_V2_HAIR_LEAN * Math.max(0, Math.sin(pitch));
+  const look = (p: Point): Point => {
+    const up = p.y - base.y;
+    const y = base.y + up * Math.cos(lean), z = up * Math.sin(lean);
+    return { x: p.x, y: pivotY + (y - pivotY) * Math.cos(pitch) + z * Math.sin(pitch) };
+  };
 
   return strands.map((strand, index) => {
     const art = arts[index]!;

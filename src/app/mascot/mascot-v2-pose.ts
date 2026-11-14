@@ -6,12 +6,13 @@
  * straighten, length), then projected. The drawn tube is fitted onto the
  * projected bones: along each bone it scales with the bone's on-screen length,
  * and across it only partly, so the drawn curve survives. The character's joints
- * are very soft: a bend is spread along the limb by blending the two bone fits
- * over a window around the elbow or knee, up to 90% of the shorter bone on each
- * side, so a limb bends as one rubber-hose curve. The window grows with Softness
- * and is always wide enough that the inner edge never folds. Like a hose, a limb
- * keeps its length when it bends: the bones grow to make up the corner the rounding
- * cuts, so a bent arm stays in proportion with the legs.
+ * are very soft: the bend a pose adds is spread along the limb, turning the drawn
+ * centreline gradually (a smootherstep across a window around the elbow or knee,
+ * up to 90% of the shorter bone on each side), so a limb bends as one rubber-hose
+ * curve with no angle or bump where the bend starts and ends. The window grows with
+ * Softness and is always wide enough that the inner edge never folds. Like a hose, a
+ * limb keeps its length when it bends: the bones grow to make up what easing the bend
+ * in takes off, so a bent arm stays in proportion with the legs.
  *
  * The art comes from the drawings around the current turn (see `mascot-v2-art.ts`):
  * tubes blend between the two nearest drawings, and the rigid pieces come from the
@@ -136,26 +137,36 @@ const FILLET_SHARE = 0.9;
  * rubber-hose curve rather than two straight pieces with a rounded corner.
  */
 const HOSE_REACH = 3;
-/** The rounding eases in over the first this-many radians of bend (10°), so a bend starting from rest doesn't jump. */
-const HOSE_EASE_IN = (10 * Math.PI) / 180;
+/**
+ * The readable-stride cheat: in a 3/4 view a forward or back swing points mostly at the camera,
+ * so the legs bunch and cross mid-way. A swing is turned up to this much toward the side view,
+ * most at 45° off the front or back and not at all at the drawn front, side and back.
+ */
+const READABLE_STRIDE = (20 * Math.PI) / 180;
+/** Smootherstep's steepest slope (at its middle): how fast a spread bend turns at most, per unit of its weight. */
+const SPREAD_PEAK = 15 / 8;
+/** Easing the hand back onto its bone tightens a spread bend; the narrowest window allows for it. */
+const EASE_BACK_ROOM = 2;
 
 const radians = (degrees: number) => (degrees * Math.PI) / 180;
 const sub2 = (a: Point, b: Point): Point => ({ x: a.x - b.x, y: a.y - b.y });
 const add2 = (a: Point, b: Point): Point => ({ x: a.x + b.x, y: a.y + b.y });
 const len2 = (v: Point) => Math.hypot(v.x, v.y);
+const smootherstep = (t: number) => {
+  const c = Math.min(1, Math.max(0, t));
+  return c * c * c * (c * (6 * c - 15) + 10);
+};
+const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+/** The linear part of an affine point map: where it sends a step. */
+function linearPart(map: PointMap): (v: Point) => Point {
+  const o = map({ x: 0, y: 0 });
+  const ex = sub2(map({ x: 1, y: 0 }), o), ey = sub2(map({ x: 0, y: 1 }), o);
+  return (v) => ({ x: ex.x * v.x + ey.x * v.y, y: ex.y * v.x + ey.y * v.y });
+}
 function polylineLength(line: readonly Point[]): number {
   let total = 0;
   for (let i = 1; i < line.length; i++) total += len2(sub2(line[i]!, line[i - 1]!));
   return total;
-}
-/** How much shorter the quadratic curve from `a` round `b` to `c` is than the corner a–b–c (Simpson's rule, 16 steps). */
-function cornerCut(a: Point, b: Point, c: Point): number {
-  const ab = sub2(b, a), bc = sub2(c, b);
-  const speed = (t: number) => 2 * Math.hypot((1 - t) * ab.x + t * bc.x, (1 - t) * ab.y + t * bc.y);
-  const steps = 16;
-  let sum = speed(0) + speed(1);
-  for (let i = 1; i < steps; i++) sum += (i % 2 === 1 ? 4 : 2) * speed(i / steps);
-  return len2(ab) + len2(bc) - sum / (3 * steps);
 }
 const lerp2 = (a: Point, b: Point, t: number): Point => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
 const angleOf = (v: Point) => Math.atan2(v.y, v.x);
@@ -172,6 +183,8 @@ const lerp3 = (a: Vec3, b: Vec3, t: number): Vec3 => add3(a, scale3(sub3(b, a), 
 const cross3 = (a: Vec3, b: Vec3): Vec3 => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
 /** Rotation in the front (screen) plane, the same sense as `rotatePoint`. */
 const rotateZ = (v: Vec3, r: number): Vec3 => ({ x: v.x * Math.cos(r) - v.y * Math.sin(r), y: v.x * Math.sin(r) + v.y * Math.cos(r), z: v.z });
+/** Rotation about the vertical axis, the same sense as the turn: positive takes forward (+z) toward screen right. */
+const rotateY = (v: Vec3, r: number): Vec3 => ({ x: v.x * Math.cos(r) + v.z * Math.sin(r), y: v.y, z: -v.x * Math.sin(r) + v.z * Math.cos(r) });
 /** Rotation about the lateral axis: positive swings a hanging limb forward (+z). */
 const rotateX = (v: Vec3, r: number): Vec3 => ({ x: v.x, y: v.y * Math.cos(r) - v.z * Math.sin(r), z: v.y * Math.sin(r) + v.z * Math.cos(r) });
 function rotateAround(v: Vec3, axis: Vec3, r: number): Vec3 {
@@ -266,7 +279,9 @@ export function poseV2Limb(input: MascotV2LimbInput): MascotV2PosedLimb {
     fitM = lerp2(drawnM, along(upper2), a);
     fitE = lerp2(drawnE, along(upper2 + lower2), a);
   }
-  const atRoot = (v: Vec3) => rotateX(rotateZ(v, radians(pose.raise) * mirror), radians(pose.swing));
+  // Swing happens in a plane turned toward the side view in 3/4 views (READABLE_STRIDE); with no swing, nothing changes.
+  const cheat = READABLE_STRIDE * Math.sin(2 * radians(camera.yaw));
+  const atRoot = (v: Vec3) => rotateY(rotateX(rotateY(rotateZ(v, radians(pose.raise) * mirror), -cheat), radians(pose.swing)), cheat);
   const upperBone = atRoot(sub3(M, R));
   let lowerBone = atRoot(sub3(E, M));
   if (pose.bend !== 0) {
@@ -290,13 +305,8 @@ export function poseV2Limb(input: MascotV2LimbInput): MascotV2PosedLimb {
   const sMid = tube.arc[nearestIndex(restMidline, fitM)]!;
   const signedTurn = (a: Point, b: Point) => Math.atan2(a.x * b.y - a.y * b.x, a.x * b.x + a.y * b.y);
   const drawnTurn = signedTurn(sub2(fitM, drawnR), sub2(fitE, fitM));
-  const restAt = (s: number): Point => {
-    const i = Math.max(0, Math.min(tube.arc.length - 2, tube.arc.findIndex((a) => a > s) - 1));
-    const span = tube.arc[i + 1]! - tube.arc[i]!;
-    return lerp2(restMidline[i]!, restMidline[i + 1]!, span > 1e-9 ? Math.min(1, Math.max(0, (s - tube.arc[i]!) / span)) : 0);
-  };
 
-  /** Projects the bones at `stretch` times the posed length and fits the drawn centreline onto them, rounding the joint. */
+  /** Projects the bones at `stretch` times the posed length and fits the drawn centreline onto them, bending it smoothly at the joint. */
   const fitBones = (stretch: number) => {
     const upper = scale3(upperBone, pose.length * stretch), lower = scale3(lowerBone, pose.length * stretch);
     const rootP = projectV2(R, camera), midP = projectV2(add3(R, upper), camera), endP = projectV2(add3(add3(R, upper), lower), camera);
@@ -308,43 +318,52 @@ export function poseV2Limb(input: MascotV2LimbInput): MascotV2PosedLimb {
     // Fitting each bone separately leaves a corner at the joint as big as the bend the pose adds to
     // the drawing's own bend. At rest there is no corner, so the drawn curve is kept exactly.
     const posedTurn = signedTurn(sub2(midPoint, rootP.point), sub2(endPoint, midPoint));
-    const turn = Math.abs(Math.atan2(Math.sin(posedTurn - drawnTurn), Math.cos(posedTurn - drawnTurn)));
-    // The joint becomes a quadratic fillet from `window` before the joint to `window` after it.
-    // Its tightest radius is window·cos²(turn/2)/sin(turn/2), kept above half the tube's width.
-    const half = Math.min(turn, Math.PI - 1e-3) / 2;
-    const noFold = (halfWidth * FOLD_MARGIN * Math.sin(half)) / Math.cos(half) ** 2;
-    // Softness spreads a bend along the limb, at least HOSE_REACH × Softness px either side of
-    // the joint (and never tighter than a Softness-radius fillet), so the limb curves like a
-    // rubber hose instead of meeting at a corner.
-    const easeIn = Math.min(1, turn / HOSE_EASE_IN);
-    const reach = Math.max(filletDistance(input.softness, turn, upperLen, lowerLen), HOSE_REACH * input.softness) * easeIn * (2 - easeIn);
+    const addedTurn = Math.atan2(Math.sin(posedTurn - drawnTurn), Math.cos(posedTurn - drawnTurn));
+    const turn = Math.abs(addedTurn);
+    // Softness spreads the bend along the limb, at least HOSE_REACH × Softness px either side of the
+    // joint (and never tighter than a Softness-radius fillet), so the limb curves like a rubber hose.
+    // The bend turns the centreline gradually across that window, adding at most turn·SPREAD_PEAK/(2·window)
+    // of curvature to the drawn curve, so the window also keeps that curve wider than the tube.
+    const noFold = (turn * SPREAD_PEAK * halfWidth * FOLD_MARGIN * EASE_BACK_ROOM) / 2;
+    const reach = Math.max(filletDistance(input.softness, turn, upperLen, lowerLen), HOSE_REACH * input.softness);
     const window = turn < 1e-6 ? 0 : Math.min(Math.max(reach, noFold), FILLET_SHARE * Math.min(upperLen, lowerLen, sMid, tube.length - sMid));
-    const enter = upperMap(restAt(sMid - window)), corner = upperMap(restAt(sMid)), leave = lowerMap(restAt(sMid + window));
-    const rounded = restMidline.map((p, i) => {
-      const s = tube.arc[i]!;
-      if (window > 1e-6 && Math.abs(s - sMid) < window) {
-        const t = (s - (sMid - window)) / (2 * window);
-        return lerp2(lerp2(enter, corner, t), lerp2(corner, leave, t), t);
+    const weight = (s: number) => (window > 1e-6 ? smootherstep((s - (sMid - window)) / (2 * window)) : s <= sMid ? 0 : 1);
+    // Walk the drawn centreline, turning each step from the upper bone's fit to the lower bone's by
+    // the weight. The curve stays smooth where the bend starts and ends: no angle or bump there.
+    const upperStep = linearPart(upperMap), lowerStep = linearPart(lowerMap);
+    const walked: Point[] = [upperMap(restMidline[0]!)];
+    let hose = 0;
+    for (let i = 1; i < restMidline.length; i++) {
+      const d = sub2(restMidline[i]!, restMidline[i - 1]!);
+      const w = weight((tube.arc[i]! + tube.arc[i - 1]!) / 2);
+      const u = upperStep(d), v = lowerStep(d);
+      let step = w <= 0 ? u : v;
+      if (w > 0 && w < 1) {
+        const from = angleOf(u);
+        const by = wrapAngle(angleOf(v) - from - addedTurn) + addedTurn;
+        const length = len2(u) + (len2(v) - len2(u)) * w;
+        step = { x: Math.cos(from + by * w) * length, y: Math.sin(from + by * w) * length };
       }
-      return s <= sMid ? upperMap(p) : lowerMap(p);
-    });
-    // Only the corner the pose adds: rounding the drawing's own elbow or knee curve isn't made up.
-    let cut = 0;
-    if (window > 1e-6) {
-      const drawnAngle = Math.abs(signedTurn(sub2(restAt(sMid), restAt(sMid - window)), sub2(restAt(sMid + window), restAt(sMid))));
-      const a = len2(sub2(corner, enter)), b = len2(sub2(leave, corner));
-      const drawnCut = cornerCut({ x: -a, y: 0 }, { x: 0, y: 0 }, { x: b * Math.cos(drawnAngle), y: b * Math.sin(drawnAngle) });
-      cut = Math.max(0, cornerCut(enter, corner, leave) - drawnCut);
+      hose += len2(step);
+      walked.push(add2(walked[i - 1]!, step));
     }
-    return { cut, endP, endPoint, midP, midPoint, rootP, rounded };
+    // The walk reaches past the bone's end (it doesn't cut the corner); ease that back in across the
+    // bend, so the forearm or shin lies on its bone and the hand or foot sits on the bone's end.
+    const last = restMidline.length - 1;
+    const miss = sub2(lowerMap(restMidline[last]!), walked[last]!);
+    const rounded = walked.map((p, i) => {
+      const w = weight(tube.arc[i]!);
+      return { x: p.x + miss.x * w, y: p.y + miss.y * w };
+    });
+    return { endP, endPoint, hose, midP, midPoint, rootP, rounded };
   };
-  // A rubber hose keeps its length when it bends. Rounding the joint cuts the corner, so when
-  // the pose bends the limb the bones grow until the rounded limb is as long on screen as it
-  // was before the corner was cut. Unbent limbs (the refitted right arm included) stay as fitted.
+  // A rubber hose keeps its length when it bends. Easing the bend in shortens the limb on screen,
+  // so when the pose bends the limb the bones grow until the bent limb is as long as the walk was.
+  // Unbent limbs (the refitted right arm included) stay as fitted.
   let stretch = 1;
   let fit = fitBones(stretch);
-  const hoseLength = polylineLength(fit.rounded) + fit.cut;
-  for (let step = 0; step < 4 && pose.bend !== 0 && fit.cut > 1e-6; step++) {
+  const hoseLength = fit.hose;
+  for (let step = 0; step < 4 && pose.bend !== 0; step++) {
     const next = (stretch * hoseLength) / Math.max(polylineLength(fit.rounded), 1e-6);
     if (Math.abs(next - stretch) < 1e-5) break;
     stretch = next;

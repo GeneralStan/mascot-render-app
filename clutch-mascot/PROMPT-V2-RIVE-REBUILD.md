@@ -92,6 +92,7 @@ Do one step per message. Before each step, tell me what you plan to change. Afte
    - Add the far limbs (_R): copies of the near ones' shapes, behind everything, one step darker, with base #C94631. That darkening is the one colour change allowed; don't change anything else.
    - Mascot Lab's SVG export of the side view, posed at the walk's contact pose, can be the starting pose.
 8. **Check.** List all four artboards' hierarchies side by side and point out anything that doesn't match CLAUDE.md.
+9. **Tilted views (optional, only when I ask).** Mascot_Top, Mascot_ThreeQuarterTop, Mascot_Bottom and Mascot_ThreeQuarterBottom come from Mascot Lab's SVG export at that angle. CLAUDE.md lists their group order (from above, Hair is its own group over Headband). Import each as exported and rename its layers to the four-layer names. Don't redraw anything.
 
 ## Rules
 

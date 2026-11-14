@@ -64,6 +64,8 @@ function walkPose(currentTurn: unknown): PoseValues {
     [t[`arm${far}Swing`]]: w.farArm,
     [t[`leg${near}Swing`]]: w.nearLeg,
     [t[`leg${far}Swing`]]: w.farLeg,
+    [t[`leg${near}Raise`]]: w.legRaise,
+    [t[`leg${far}Raise`]]: w.legRaise,
     [t.hairSweep]: w.hairSweep,
   };
 }

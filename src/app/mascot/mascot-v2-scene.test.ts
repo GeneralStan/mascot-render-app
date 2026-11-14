@@ -7,7 +7,8 @@ import { mascotV2Faces } from "./mascot-v2-faces";
 import { mascotV2Colors, mascotV2Views } from "./mascot-v2-parts";
 import { MASCOT_V2_REST_POSE, type MascotV2LimbPose } from "./mascot-v2-pose";
 import { cameraLight, lightAzimuth, MASCOT_V2_DRAWN_LIGHT_ANGLE, mixHex } from "./mascot-relight";
-import { buildMascotV2Scene, limbPalette, MASCOT_V2_TUCK_LENGTH, type MascotV2SceneInput } from "./mascot-v2-scene";
+import { MASCOT_ROOT_BLEND } from "./mascot-root-blend";
+import { buildMascotV2Scene, limbPalette, type MascotV2SceneInput } from "./mascot-v2-scene";
 
 const REST: MascotV2SceneInput = {
   body: { lean: 0, lift: 0, pivot: { x: 0, y: 0 }, softness: 18, squash: 0 },
@@ -194,14 +195,27 @@ describe("V2 scene", () => {
     expect(width(90)).toBeLessThan(width(30));
   });
 
-  it("tucks a near arm's outline in at the shoulder so it grows out of the body", () => {
-    for (const turn of [30, 90]) {
+  it("blends a near arm into the body at the shoulder: no outline, shade or highlight across it there", () => {
+    for (const turn of [30, 45, 90]) {
       const shapes = mascotShapes(scene({ turn }));
       const outline = pointsOf(shapes.find((shape) => shape.id === "arm-L-outline")!.d);
       const base = pointsOf(shapes.find((shape) => shape.id === "arm-L-base")!.d);
       const root = base[0]!;
-      expect(Math.hypot(outline[0]!.x - root.x, outline[0]!.y - root.y), `${turn}`).toBeGreaterThan(MASCOT_V2_TUCK_LENGTH * 0.6);
+      // The solid outline starts only past the blend; before it, each edge's outline fades in from nothing.
+      expect(Math.hypot(outline[0]!.x - root.x, outline[0]!.y - root.y), `${turn}`).toBeGreaterThan(MASCOT_ROOT_BLEND.min * 0.6);
+      for (const k of [0, 1]) {
+        const fade = shapes.find((shape) => shape.id === `arm-L-outline-root-${k}`)!;
+        const stops = fade.paint.gradient!.stops;
+        expect(stops[0]!.alpha, `${turn} edge ${k}`).toBe(0);
+        expect(stops[stops.length - 1]!.alpha, `${turn} edge ${k}`).toBe(1);
+      }
+      // The shade bands start at nothing at the shoulder.
+      for (const band of shapes.filter((shape) => /^arm-L-shade-\d$/.test(shape.id))) {
+        const points = pointsOf(band.d);
+        expect(Math.hypot(points[0]!.x - points[points.length - 1]!.x, points[0]!.y - points[points.length - 1]!.y), `${turn} ${band.id}`).toBeLessThan(0.5);
+      }
       // An arm behind the body keeps its full outline.
+      expect(shapes.some((shape) => shape.id.startsWith("arm-R-outline-root")), `${turn}`).toBe(false);
       const behind = pointsOf(shapes.find((shape) => shape.id === "arm-R-outline")!.d);
       const behindBase = pointsOf(shapes.find((shape) => shape.id === "arm-R-base")!.d);
       expect(Math.hypot(behind[0]!.x - behindBase[0]!.x, behind[0]!.y - behindBase[0]!.y), `${turn}`).toBeLessThan(1e-6);

@@ -63,6 +63,12 @@ async function prepareBranch(page: Page, target: string): Promise<void> {
   if (target === t.hairWavePhase) await pressRange(controlByTarget(page, t.hairWave), "End");
   if (target === t.armLeftTwist) await pressRange(controlByTarget(page, t.armLeftElbow), "End");
   if (target === t.armRightTwist) await pressRange(controlByTarget(page, t.armRightElbow), "End");
+  // Softness spreads a bend along the limb, so it shows once an elbow is bent sideways (Twist 90°;
+  // at 0° the elbow bends toward the camera and the forearm only foreshortens).
+  if (target === t.bodySoftness) {
+    await pressRange(controlByTarget(page, t.armLeftElbow), "End");
+    await typeSliderValue(controlByTarget(page, t.armLeftTwist), "90");
+  }
   // The light's turn is clearest in the cast shadow.
   if (target === t.lightAngle) await setSwitch(page, t.castVisible, true);
   // Auto eyes and mouth show the happy face by default, the same as Open and Happy; with no step
@@ -77,20 +83,21 @@ async function prepareBranch(page: Page, target: string): Promise<void> {
  */
 const TYPED_SLIDER_VALUES: Readonly<Record<string, string>> = { [t.hairWavePhase]: "90", [t.vmPace]: "70" };
 
+/** Types one absolute value into a slider (one Undo step). */
+async function typeSliderValue(locator: Locator, value: string): Promise<void> {
+  await locator.getByRole("button", { name: /^Edit .* value$/ }).click();
+  const field = locator.getByRole("textbox");
+  await field.fill(value);
+  await field.press("Enter");
+}
+
 type ControlAction = (control: Locator, page: Page) => Promise<void>;
 
 function changeAction(control: SchemaControl): ControlAction {
   switch (control.type) {
     case "slider": {
       const typed = TYPED_SLIDER_VALUES[control.target];
-      if (typed !== undefined) {
-        return async (locator) => {
-          await locator.getByRole("button", { name: /^Edit .* value$/ }).click();
-          const field = locator.getByRole("textbox");
-          await field.fill(typed);
-          await field.press("Enter");
-        };
-      }
+      if (typed !== undefined) return (locator) => typeSliderValue(locator, typed);
       // The saved defaults may sit at either end (Joint softness is saved at its maximum).
       return (locator) => pressRangeAway(locator);
     }

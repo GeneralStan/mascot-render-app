@@ -265,9 +265,18 @@ function highlightPolylines(cuts: readonly Section[], highlights: readonly Masco
 const specular = (c: number, front: number) => Math.sin(Math.atan2(Math.abs(c), Math.max(front, MIN_FRONT)) / 2);
 
 /** Shade bands and highlights for an arm or leg tube, from its two edges on screen. `size` scales the bands (1 = as drawn). */
-export function shadeTube(edges: readonly [readonly Point[], readonly Point[]], light: MascotLight, highlights: readonly MascotTubeHighlight[], size = 1): MascotTubeShading {
+export function shadeTube(
+  edges: readonly [readonly Point[], readonly Point[]],
+  light: MascotLight,
+  highlights: readonly MascotTubeHighlight[],
+  size = 1,
+  /** Per-sample share of the band widths: a root blended into the body tapers its shade in from nothing. */
+  taper?: readonly number[],
+): MascotTubeShading {
   const cuts = sections(edges);
-  const [widthA, widthB] = sizedWidths(cuts, tubeWidths(cuts, light), size);
+  const [sizedA, sizedB] = sizedWidths(cuts, tubeWidths(cuts, light), size);
+  const tapered = (widths: readonly number[]) => (taper ? widths.map((w, i) => w * (taper[i] ?? 1)) : widths);
+  const widthA = tapered(sizedA), widthB = tapered(sizedB);
   const bands = bandPolygons(cuts, widthA, widthB);
   const lines = highlightPolylines(cuts, highlights, (i, h) => {
     const c = dot2(light, cuts[i]!.u);
@@ -312,7 +321,15 @@ function innerEdge(midline: readonly Point[], cuts: readonly Section[]): 1 | -1 
  * above (plus a little ambient); light from below shades the outside instead. The highlight
  * sits on the other side from the shade.
  */
-export function shadeStrand(edges: readonly [readonly Point[], readonly Point[]], midline: readonly Point[], light: MascotLight, highlights: readonly MascotTubeHighlight[], size = 1): MascotTubeShading {
+export function shadeStrand(
+  edges: readonly [readonly Point[], readonly Point[]],
+  midline: readonly Point[],
+  light: MascotLight,
+  highlights: readonly MascotTubeHighlight[],
+  size = 1,
+  /** Per-sample share of the band widths: a root blended into the crown tapers its shade in from nothing. */
+  taper?: readonly number[],
+): MascotTubeShading {
   const cuts = sections(edges);
   const inner = innerEdge(midline, cuts);
   const fromAbove = terminatorShare(-light.y, light.z);
@@ -327,7 +344,8 @@ export function shadeStrand(edges: readonly [readonly Point[], readonly Point[]]
   const lean = -inner * Math.sign(-light.y);
   const lines = highlightPolylines(cuts, highlights, (_, h) => lean * h.offset * specular(-light.y, light.z));
   const [sizedA, sizedB] = sizedWidths(cuts, [widthA, widthB], size);
-  return { bands: bandPolygons(cuts, sizedA, sizedB), highlights: lines };
+  const tapered = (widths: readonly number[]) => (taper ? widths.map((w, i) => w * (taper[i] ?? 1)) : widths);
+  return { bands: bandPolygons(cuts, tapered(sizedA), tapered(sizedB)), highlights: lines };
 }
 
 /**

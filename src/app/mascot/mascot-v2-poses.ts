@@ -12,7 +12,9 @@
  * - Excited face (eyes_open + the open grin), off the ground.
  *
  * Walk contact is the walk's first contact pose, from Figma's Walking drawing (V1 frame 82:7560):
- * near leg and far arm forward, far leg and near arm back. The hair leans forward a little.
+ * near leg and far arm forward, far leg and near arm back. The hair leans forward a little. Both
+ * legs come in 6° toward the centre line (a walker's narrow step), so in a 3/4 view they cross
+ * just under the body instead of tangling half-way down.
  */
 
 import { MASCOT_V2_REST_POSE, type MascotV2LimbPose } from "./mascot-v2-pose";
@@ -33,5 +35,5 @@ export const MASCOT_V2_CASH_JUMP: MascotV2NamedPose = {
   limbs: { armL: cashArm, armR: cashArm, legL: cashLeg, legR: cashLeg },
 };
 
-/** The walk's contact pose, as swings in degrees for the near and far limbs (side-on). */
-export const MASCOT_WALK_CONTACT = { farArm: 30, farLeg: -31, hairSweep: 4, nearArm: -36, nearLeg: 20 } as const;
+/** The walk's contact pose, as swings in degrees for the near and far limbs (side-on), and both legs' raise (in toward the centre line). */
+export const MASCOT_WALK_CONTACT = { farArm: 30, farLeg: -31, hairSweep: 4, legRaise: -6, nearArm: -36, nearLeg: 20 } as const;

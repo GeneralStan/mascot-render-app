@@ -340,8 +340,8 @@ function readColorOpacity(
   return { hex, opacity };
 }
 
-/** Looking down/up is a gentle pseudo-3D foreshortening, so the camera tilt is capped. */
-export const MASCOT_MAX_PITCH_DEGREES = 30;
+/** The camera can look straight down on the crown or straight up at the underside (`mascot-body-volume.ts`). */
+export const MASCOT_MAX_PITCH_DEGREES = 90;
 
 type Triple = readonly [number, number, number];
 

@@ -804,7 +804,6 @@ Clutch Mascot Lab poses and shades the Clutch mascot ("Clutchman"), rebuilt as a
 ### Iteration 20 — Faces_V2 imported; MascotVM view model previewed; git and GitHub Pages
 
 - Change ID: clutch-faces-v2-and-view-model
-- Active change: clutch-faces-v2-and-view-model
 - Request: "I've drawn the Faces V2--> https://www.figma.com/design/hE0eJAkqKzj3K5JfIcpT8o/Clutch?node-id=293-1448 … ENumerate using the desktop bridge plugin"; "Yes, let's do this as well" (to "View model: connect MascotVM (pace, timeOfDay, the triggers) to the app"); then the answers: face 293:1436 is "face_angry"; the excited face for "goalHit (celebrating),won (cash jump),joined,Just an option"; the view model as the "State preview section".
 - Task type: Figma art import (faces) and a schema/product behaviour change (a new controls section driving the renderer).
 - User-visible result:
@@ -847,6 +846,44 @@ Clutch Mascot Lab poses and shades the Clutch mascot ("Clutchman"), rebuilt as a
   - Risk: the key poses for tired, celebrating, thumbs up, wave and shrug are agent-authored offsets from PROMPTS.md's descriptions; the user should judge them.
   - Risk: the time-of-day light is a Mascot Lab extra with no Rive equivalent.
   - Risk: Faces_V2 is front-only; turned views place the front drawings (narrowed mouths), so 3/4 expressions are an approximation until 3/4 faces are drawn.
+
+### Iteration 21 — Tilted views (crown and underside), limbs blending into the body, smooth bends, readable 3/4 walk
+
+- Change ID: clutch-tilted-views-and-limb-blend
+- Active change: clutch-tilted-views-and-limb-blend
+- Request: "The mascot app is still not rendering some views properly, e.g 3/4 walking, 3/4 top view, top view, bottom view, 3/4 bottom view." with three AI 3D renders as reference ("wasn't able to export the files in the proper format but here you go"); answers: "Build it in code", "the 3/4 should show the mascot as 2.5D, the strokes at the shoulder should not be there. The limbs should blend into the body at any angled view", "Legs cross and tangle", "Stride barely shows", and Rive: "Rive too". Mid-turn: "also there are some awkward slightly angled bends/bumps in the arm of the mascot".
+- Task type: Renderer change (limb bend, root blend, 3D body volume for camera tilt) and a pose change (walk contact).
+- User-visible result:
+  - The camera can look straight down on the crown or straight up at the underside (tilt cap 30° → 90°). Looking down, the headband closes into a ring round the crown by 35°, the hair grows out of the crown and fans back, and the face slides down the body; looking up, the band narrows to an arch and goes, the face rises, and the legs come out of the underside. The floor's shadows fade out below level.
+  - Wherever a limb is painted over the body (the near arm in 3/4 and side, the legs from below, the strands from above), its root blends in: no outline across the body at the shoulder, hip or crown, and its shade and highlight start past the blend.
+  - Arms and legs bend without the small angled kinks at the ends of the rounding (rest right arm, between drawn views, any elbow or knee bend).
+  - 3/4 walking: the stride shows and the legs cross just under the body instead of tangling half-way down.
+- Source/reference checked: the three renders, saved to `clutch-mascot/refs/render_3q_low_walking.webp`, `render_front_high.webp` and `render_3q_high.webp` (not committed); Mascot Lab renders at matching angles (`.toolcraft/browser-artifacts/match-renders.png`, `walk-3q.png`, `shoulders*.png`, `arm-overlay*.png`, `legs-3q*.png`, `tilt-*.png`).
+- Reference inputs: None for motion; `referenceInputs` stays `[]` (stills only).
+- Docs/contracts read: `docs/toolcraft/workflow.md`; systematic-debugging for the arm kinks (root cause before the fix).
+- Contract rules applied: one shared `MascotScene` for preview, raster, SVG, video and bounds; level views keep the drawings exactly; no new controls.
+- View interaction intent: `orbit` (unchanged); the gimbal's tilt now reaches ±90°.
+- Interaction ownership: Unchanged.
+- Decision:
+  - **Arm kinks (root cause):** the joint rounding was a quadratic whose end tangents point at the drawn elbow point, which sits on the drawn curve, not on its tangent, so it met the rest of the limb at an angle at both ends whenever the pose (or the right arm's refit, or a blend between drawings) added a bend. Now each step of the drawn centreline turns from the upper bone's fit to the lower bone's by a smootherstep across the window, and the difference to the bone's end is eased back in the same way, so the curve is smooth everywhere; the bones still grow so a bent limb keeps its length (`mascot-v2-pose.ts`).
+  - **Root blend (`mascot-root-blend.ts`):** the outline's first stretch is a gradient stroke from transparent to solid on each edge, until the tube leaves the body's silhouette (12–56 px); shade bands taper in (`shadeTube`/`shadeStrand` taper) and highlights start after it.
+  - **Readable stride:** in 3/4 views a swing turns up to 20° toward the side view (most at 45°, none at the drawn front, side and back), conjugated so rest poses are unchanged. The walk contact pose brings both legs 6° in toward the centre line (preset and View Model Walking).
+  - **Body volume (`mascot-body-volume.ts`):** a round body whose cross-section at each height is a circle as wide as the front drawing (the side drawing has the same outline). Tilted outline = envelope of the projected circles; face and head highlights placed on the surface; the headband is a straight-sided ring fitted to the drawn stripes, showing where it faces the viewer. From above it leans back as if on a rounder crown (closing into a ring at 35°, as the renders show); from below it uses its drawn slope. The tuft leans back up to 50° looking down so it fans out instead of collapsing to a line. Level views use the drawings unchanged.
+  - **Export groups for Rive:** looking down the strands are painted over the band, so they export in their own `Hair` group above `Headband`; looking up the legs export after `Body`.
+- Alternatives rejected:
+  - **Using the AI renders as art.** Raster, a different style, and it would break the never-restyle rule and the re-lighting.
+  - **A strictly physical band from above.** With the drawing's flat crown the back of the band would only show past 67°, unlike every render.
+  - **Swapping which leg leads in 3/4.** That changes the drawn contact pose; the narrow step and swing cheat keep it.
+- State/output mapping: `view.orbit` (now ±90° tilt) → `mascotSceneInput.camera.pitch` → `buildMascotV2Scene` (volume silhouette, surface map, ring, hair order and lean, legs order, shadow fade). Limb bend and blend apply to every pose.
+- Verification (focused):
+  - `npx vitest run src/app/mascot/`: all pass, including the new `mascot-body-volume.test.ts` (7 tests) and the reworked shoulder-blend scene test. Adjusted with reasons: cash-jump fists mirror within 2 px (the two drawn arms differ slightly); Softness's acceptance row now bends the left elbow sideways first (Twist 90°), because Softness only spreads bends and the old kinked rounding was the only thing it changed at rest.
+  - Browser: `npx vite build && TOOLCRAFT_BROWSER_SERVER_MODE=preview npx playwright test e2e/product-body.spec.ts e2e/product-view.spec.ts e2e/product-pose.spec.ts e2e/product-vm.spec.ts e2e/product-armLeft.spec.ts --workers=1`. 18 of 26 passed on the first run. The 8 failures were server identity resets and timeouts and one 38 s pad drag, while another process's `npm test` loaded the machine (load average 25). Rerun on their own, all 8 pass: 5 on the first rerun and 3 after a rebuild once the load dropped. So all 26 pass, including body.softness, view.orbit, pose.preset, vm.pace and every armLeft row.
+  - Scene build cost (dev build, loaded machine): level 16 ms (unchanged), tilted 21–27 ms after caching the silhouette per tilt and computing the on-screen outline only when something blends.
+  - `docs:check` and `files:check` pass. The real gimbal tilts past 30° in the running app (headless drag on the gizmo: `.toolcraft/browser-artifacts/live-drag-*.png`).
+- Risks:
+  - Risk: tilted views are code-built art for angles the user hasn't drawn (approved: "Build it in code"); straight up the legs are end-on stubs with the feet showing.
+  - Risk: the band's lean from above and the hair's lean are art-direction choices matched to the AI renders, not to a drawing.
+  - Risk: the readable-stride swing is an animation cheat; Mascot Lab poses at 3/4 won't match a strictly 3D rig.
 
 ## Decisions
 
@@ -920,7 +957,7 @@ Protected receipts own initial/performance proof. Product unit tests and focused
 ## Risks
 
 - Risk: The signed base-coverage clone test omits the renderer pipeline, so a content-pass overflow row fails there until the framework passes the pipeline through.
-- Risk: Walk angles only read as walking in Side; the preset switches to Side for that reason.
+- Risk: Walk angles read best in Side (the preset switches to Side); 3/4 uses the readable-stride swing and narrow step.
 - Risk: The protected Infinity SVG helper requires the Infinity SVG to equal the finite one (viewBox and hash), while the runtime crops Infinity SVG to the scene bounds, so `canvas.infinity.svg-export` cannot pass until the framework agrees with itself.
 - Risk: `ai:check` still flags `mascot-svg-export.ts`: the product boundary forbids `container.ownerDocument.createElementNS`, `setAttribute` and `append`, which is exactly how `core/setup-export.md` tells SVG export renderers to append vector nodes. No product-side alternative exists until the framework reconciles the two.
 - Risk: the signed `pipeline-integration` Vitest case (20s timeout) can time out when the whole suite runs in parallel; it passes on its own.

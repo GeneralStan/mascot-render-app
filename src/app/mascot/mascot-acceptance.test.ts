@@ -27,8 +27,10 @@ const BRANCH_VALUES: Readonly<Record<string, Values>> = {
   [t.castBlur]: { [t.castVisible]: true },
   [t.lightAngle]: { [t.castVisible]: true },
   [t.dropColor]: { [t.dropVisible]: true },
-  // Phase moves the ripple, so it needs some wave; twist sets the elbow's bend plane, so it needs a bend.
+  // Phase moves the ripple, so it needs some wave; twist sets the elbow's bend plane, so it needs a
+  // bend; softness spreads a bend along the limb, so it needs an elbow bent sideways (twist 90°).
   [t.hairWavePhase]: { [t.hairWave]: 12 },
+  [t.bodySoftness]: { [t.armLeftElbow]: 60, [t.armLeftTwist]: 90 },
   [t.armLeftTwist]: { [t.armLeftElbow]: 60 },
   [t.armRightTwist]: { [t.armRightElbow]: 60 },
   [t.dropOffsetX]: { [t.dropVisible]: true },

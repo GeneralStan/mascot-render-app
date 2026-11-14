@@ -211,8 +211,8 @@ function addPose(settings: MascotSettings, delta: PoseDelta | undefined): Mascot
 function walkingPose(turn: number): PoseDelta & Readonly<{ turn: number }> {
   const facingLeft = turn < 0;
   const w = MASCOT_WALK_CONTACT;
-  const near = { arm: { swing: w.nearArm }, leg: { swing: w.nearLeg } };
-  const far = { arm: { swing: w.farArm }, leg: { swing: w.farLeg } };
+  const near = { arm: { swing: w.nearArm }, leg: { raise: w.legRaise, swing: w.nearLeg } };
+  const far = { arm: { swing: w.farArm }, leg: { raise: w.legRaise, swing: w.farLeg } };
   const [left, right] = facingLeft ? [far, near] : [near, far];
   return { armLeft: left.arm, armRight: right.arm, hairSweep: w.hairSweep, legLeft: left.leg, legRight: right.leg, turn: facingLeft ? -90 : 90 };
 }
