@@ -503,6 +503,19 @@ const inventorySeeds: Record<string, InventorySeed> = {
     groupingReason: "How the mascot is seen: the gimbal viewpoint and the size.",
     id: "view",
   },
+  "view-model": {
+    entity: "MascotVM view model",
+    entityId: "view-model",
+    finiteSelectors: [
+      { reason: "No step data shows Idle with the confused face; no control depends on it.", role: "parameter", target: mascotTargets.vmHasStepData },
+      { reason: "Picks the light and, at night, the sleepy face; no control depends on it.", role: "parameter", target: mascotTargets.vmTimeOfDay },
+      { reason: "Shows or hides the headband; no control depends on it.", role: "parameter", target: mascotTargets.vmGearHeadband },
+      { reason: "Shows or hides both armbands; no control depends on it.", role: "parameter", target: mascotTargets.vmGearArmbands },
+      { reason: "Shows one trigger's key pose and face; no control depends on it.", role: "parameter", target: mascotTargets.vmReaction },
+    ],
+    groupingReason: "MascotVM, the Rive view model: what the Clutch app tells the mascot (pace, step data, time of day, gear and the trigger last fired), previewed as the state it picks.",
+    id: "view-model",
+  },
   body: {
     entity: "Body",
     entityId: "body",

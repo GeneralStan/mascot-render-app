@@ -1,7 +1,7 @@
 import type { ToolcraftPanelActionHandler } from "@/toolcraft/runtime/react";
 
 import { mascotDefaults, mascotRanges, mascotTargets } from "./mascot-settings";
-import { MASCOT_V2_CASH_JUMP } from "./mascot-v2-poses";
+import { MASCOT_V2_CASH_JUMP, MASCOT_WALK_CONTACT } from "./mascot-v2-poses";
 import type { MascotV2LimbPose } from "./mascot-v2-pose";
 
 const t = mascotTargets;
@@ -42,16 +42,12 @@ function restPose(): PoseValues {
   return values;
 }
 
-/** Stand: the rest pose with the idle (happy) face, eyes_open + mouth_happy. */
+/** Stand: the rest pose, with Auto eyes and mouth so the face follows the view model (happy at rest). */
 function standPose(): PoseValues {
   return { ...restPose(), [t.faceEyes]: mascotDefaults.faceEyes, [t.faceMouth]: mascotDefaults.faceMouth };
 }
 
-/**
- * The swings of Figma's Walking drawing (V1 frame 82:7560), as the walk's contact pose:
- * near leg and far arm forward, far leg and near arm back. The hair leans forward a little.
- */
-export const MASCOT_WALK_CONTACT = { farArm: 30, farLeg: -31, hairSweep: 4, nearArm: -36, nearLeg: 20 } as const;
+export { MASCOT_WALK_CONTACT };
 
 /**
  * Walk turns Clutchman side-on, keeping the way he faces (Turn below 0 faces screen left),
@@ -96,7 +92,7 @@ function legValues(side: (typeof ARMS)[number], leg: MascotV2LimbPose): PoseValu
   };
 }
 
-/** Cash jump: the peak of cash_jump (won), `MASCOT_V2_CASH_JUMP`, with the satisfied face (eyes_blink + mouth_happy). */
+/** Cash jump: the peak of cash_jump (won), `MASCOT_V2_CASH_JUMP`, with the excited face (eyes_open + the open grin). */
 function cashJumpPose(): PoseValues {
   const jump = MASCOT_V2_CASH_JUMP;
   return {

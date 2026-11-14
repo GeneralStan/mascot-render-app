@@ -43,7 +43,7 @@ describe("V2 named poses", () => {
       const angle = (Math.atan2(Math.abs(leg.joints.end.x - leg.joints.root.x), leg.joints.end.y - leg.joints.root.y) * 180) / Math.PI;
       expect(Math.abs(angle - REFERENCE_LEG_ANGLE), `${side} ${angle.toFixed(1)}`).toBeLessThan(1.5);
     }
-    expect(pose.face).toEqual({ eyes: "blink", mouth: "happy" });
+    expect(pose.face).toEqual({ eyes: "open", mouth: "excited" });
     expect(pose.limbs.armL.moneyBag && pose.limbs.armR.moneyBag).toBe(true);
   });
 });

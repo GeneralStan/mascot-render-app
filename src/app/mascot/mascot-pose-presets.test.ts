@@ -54,7 +54,7 @@ describe("mascot pose presets", () => {
     });
   });
 
-  it("Stand resets the pose, the turn, hands, money bags and lift, and shows the happy face", () => {
+  it("Stand resets the pose, the turn, hands, money bags and lift, and hands the face back to Auto", () => {
     const values = applied(MASCOT_POSE_ACTIONS.stand);
     expect(values).not.toHaveProperty(t.viewOrbit);
     expect(values).not.toHaveProperty(t.bodyLean);
@@ -65,20 +65,20 @@ describe("mascot pose presets", () => {
       [t.armLeftLength]: 100,
       [t.bodyLift]: 0,
       [t.bodyTurn]: 0,
-      [t.faceEyes]: "open",
-      [t.faceMouth]: "happy",
+      [t.faceEyes]: "auto",
+      [t.faceMouth]: "auto",
     });
     // Standing after a cash jump is the default mascot again.
     const afterJump = { ...applied(MASCOT_POSE_ACTIONS.cashJump), ...values, [t.bodySoftness]: 18 };
     expect(JSON.stringify(buildMascotScene(readMascotSettings(afterJump)))).toBe(JSON.stringify(buildMascotScene(readMascotSettings({}))));
   });
 
-  it("Cash jump applies MASCOT_V2_CASH_JUMP exactly, with the satisfied face", () => {
+  it("Cash jump applies MASCOT_V2_CASH_JUMP exactly, with the excited face", () => {
     const settings = readMascotSettings(applied(MASCOT_POSE_ACTIONS.cashJump));
     const input = mascotSceneInput(settings);
     expect(input.limbs).toEqual(MASCOT_V2_CASH_JUMP.limbs);
     expect(input.body).toMatchObject(MASCOT_V2_CASH_JUMP.body);
-    expect(input.face).toEqual({ eyes: "blink", mouth: "happy" });
+    expect(input.face).toEqual({ eyes: "open", mouth: "excited" });
   });
 
   it("writes keyframes only for animated pose targets while the timeline is on", () => {

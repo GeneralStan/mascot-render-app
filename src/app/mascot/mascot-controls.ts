@@ -7,6 +7,8 @@ import {
   mascotRanges,
   mascotTargets,
   mouthOptions,
+  reactionOptions,
+  timeOfDayOptions,
   type MascotRange,
 } from "./mascot-settings";
 import { MASCOT_POSE_ACTIONS } from "./mascot-pose-presets";
@@ -124,6 +126,86 @@ export const viewSection: ControlsSection = {
   title: "View",
 };
 
+/**
+ * MascotVM, the Rive view model, previewed here (`mascot-view-model.ts`): the state it picks is
+ * shown at its key pose under the pose sliders, Auto eyes and mouth follow its face, and the gear
+ * switches show or hide the gear.
+ */
+export const viewModelSection: ControlsSection = {
+  controls: {
+    pace: slider(t.vmPace, "Pace", mascotRanges.vmPace, {
+      description:
+        "MascotVM pace. Under 40 is Tired (slumped, disappointed face); 40 to 99 is Walking (side-on at the walk's contact pose, facing the way Turn faces); 100 and up is Idle.",
+      editable: false,
+      orderRole: "primary",
+    }),
+    hasStepData: {
+      applicability: always,
+      defaultValue: mascotDefaults.vmHasStepData,
+      description: "MascotVM hasStepData. Off is Idle with the confused face, whatever the pace.",
+      label: "Step data",
+      orderRole: "mode",
+      performanceReason: POSE_REASON,
+      performanceRole: "responsiveness",
+      target: t.vmHasStepData,
+      type: "switch",
+    },
+    timeOfDay: {
+      applicability: always,
+      defaultValue: mascotDefaults.vmTimeOfDay,
+      description:
+        "MascotVM timeOfDay. Night shows the sleepy face. Mascot Lab also moves the light, which Rive can't: morning brings it 20° lower on its side, evening mirrors that to the other side.",
+      label: "Time of day",
+      options: timeOfDayOptions,
+      orderRole: "mode",
+      performanceReason: POSE_REASON,
+      performanceRole: "responsiveness",
+      target: t.vmTimeOfDay,
+      type: "segmented",
+    },
+    headband: {
+      applicability: always,
+      defaultValue: mascotDefaults.vmGearHeadband,
+      description: "MascotVM gearHeadband: shows or hides the headband.",
+      label: "Headband",
+      orderRole: "mode",
+      performanceReason: POSE_REASON,
+      performanceRole: "responsiveness",
+      target: t.vmGearHeadband,
+      type: "switch",
+    },
+    armbands: {
+      applicability: always,
+      defaultValue: mascotDefaults.vmGearArmbands,
+      description: "MascotVM gearArmbands: shows or hides both armbands.",
+      label: "Armbands",
+      orderRole: "mode",
+      performanceReason: POSE_REASON,
+      performanceRole: "responsiveness",
+      target: t.vmGearArmbands,
+      type: "switch",
+    },
+    reaction: {
+      applicability: always,
+      defaultValue: mascotDefaults.vmReaction,
+      description:
+        "The MascotVM trigger last fired, at its key pose: Goal hit jumps with both arms up, Won is the cash jump, Joined gives a thumbs up, Tap waves, Out shrugs. Goal hit, Won and Joined show the excited face, Out the sad one. As in Rive, Goal hit and Won replace the pace's pose; the others play over it.",
+      label: "Reaction",
+      options: reactionOptions,
+      orderRole: "mode",
+      performanceReason: POSE_REASON,
+      performanceRole: "responsiveness",
+      target: t.vmReaction,
+      type: "select",
+    },
+  },
+  description:
+    "Previews MascotVM, the Rive view model. The state it picks is shown at its key pose, under the pose sliders, which add to it. Auto eyes and mouth follow its face.",
+  id: "view-model",
+  layoutGroups: [{ columns: 2, controls: ["headband", "armbands"], layout: "inline" }],
+  title: "View Model",
+};
+
 export const bodySection: ControlsSection = {
   controls: {
     pose: {
@@ -135,7 +217,7 @@ export const bodySection: ControlsSection = {
       applicability: always,
       defaultValue: null,
       description:
-        "Stand resets every joint, the hair, hands, money bags, lift and Turn. Walk turns Clutchman side-on (keeping his facing) at the walk's contact pose. Cash jump is the peak of the won jump: fists up holding money bags, legs splayed, off the ground. The camera, lean, squash and shading stay as they are.",
+        "Stand resets every joint, the hair, hands, money bags, lift and Turn, and sets the eyes and mouth to Auto. Walk turns Clutchman side-on (keeping his facing) at the walk's contact pose. Cash jump is the peak of the won jump: fists up holding money bags, legs splayed, off the ground, with the excited face. The camera, lean, squash, shading and View Model stay as they are.",
       label: "Pose",
       orderRole: "action",
       performanceReason: POSE_REASON,
@@ -213,7 +295,7 @@ export const faceSection: ControlsSection = {
     eyes: {
       applicability: always,
       defaultValue: mascotDefaults.faceEyes,
-      description: "Eye set from the Figma face; turned views keep only the near eye.",
+      description: "Eyes from Faces_V2 in Figma (sad eyes are still V1). Auto follows the View Model's face. Turned views keep only the near eye.",
       label: "Eyes",
       options: eyesOptions,
       orderRole: "primary",
@@ -225,7 +307,7 @@ export const faceSection: ControlsSection = {
     mouth: {
       applicability: always,
       defaultValue: mascotDefaults.faceMouth,
-      description: "Mouth from the Figma face; the side view shows its front half.",
+      description: "Mouth from Faces_V2 in Figma, with its soft shadow. Auto follows the View Model's face. Turned, it narrows with the drawn smile.",
       label: "Mouth",
       options: mouthOptions,
       orderRole: "primary",
@@ -523,6 +605,7 @@ export const dropShadowSection: ControlsSection = {
 export const mascotControlSections: readonly ControlsSection[] = [
   backgroundSection,
   viewSection,
+  viewModelSection,
   bodySection,
   bodyPivotSection,
   hairSection,

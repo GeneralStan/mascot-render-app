@@ -19,15 +19,24 @@
  *
  * Open eyes and the happy mouth are the drawn V2 shapes, the mouth with its soft shadow (a
  * gradient stroke under the smile, blended between the drawings like the mouth). The other
- * expressions reuse the V1 shapes (until V2 versions are drawn), centred on the same spots
- * and sized the same way.
+ * expressions come from Faces_V2 (`mascot-v2-faces.ts`), drawn for the front view and placed on
+ * the drawn eyes and smile at every turn, sized like the eyes they stand in for. Each keeps its
+ * drawing's layout, measured against face_happy and laid against Standing's own eyes and smile
+ * (Standing's smile sits 2.8 px further below its eyes than face_happy's):
+ * - Eyes drawn with the smile (blink in face_satisfied, tired in face_sleepy) keep their height
+ *   above it, so the smile stays put and the eyes change.
+ * - A mouth keeps its distance below the eyes it was drawn with (the excited grin under open
+ *   eyes, the neutral line under curious eyes, the frown under tired eyes), and angry eyes keep
+ *   theirs above the frown.
+ * Sad eyes aren't drawn in V2 yet, so they still reuse the V1 shapes.
  */
 
 import { mapPath, parsePath, serializePath, type Point } from "./mascot-path";
 import { normalizeYaw } from "./mascot-v2-art";
 import { mascotV2Colors, mascotV2Views, type MascotV2Gradient, type MascotV2Shape } from "./mascot-v2-parts";
-import { mascotEyes, mascotMouths, mascotV1FaceAnchors } from "./mascot-v1-faces";
+import { mascotEyes, mascotV1FaceAnchors } from "./mascot-v1-faces";
 import type { MascotEyes, MascotMouth } from "./mascot-settings";
+import { mascotV2Faces, type MascotV2FaceName, type MascotV2FaceShape } from "./mascot-v2-faces";
 
 export type MascotV2FacePart = Readonly<{
   d: string;
@@ -163,21 +172,78 @@ function faceKeys(sign: 1 | -1): readonly FaceKey[] {
 }
 const KEYS = { left: faceKeys(-1), right: faceKeys(1) } as const;
 
-/** The V1 eye shapes for one side (left or right of V1's head centre), and the V1 mouth. */
-function v1Eye(kind: MascotEyes, left: boolean): readonly MascotV2Shape[] {
-  return mascotEyes[kind]
+/** The V1 sad eyes for one side (left or right of V1's head centre); V2 doesn't draw sad eyes yet. */
+function v1SadEye(left: boolean): readonly MascotV2Shape[] {
+  return mascotEyes.sad
     .filter((shape) => (boxOf([shape.d]).x <= mascotV1FaceAnchors.headCenterX) === left)
     .map((shape) => ({ d: shape.d, fill: shape.fill ?? mascotV2Colors.ink }));
 }
-const v1Mouth = (kind: MascotMouth): readonly MascotV2Shape[] => mascotMouths[kind].map((shape) => ({ d: shape.d, fill: shape.fill ?? mascotV2Colors.ink }));
 
-/** Moves shapes from their own centre to `to`, scaling them about it by `sx` and `sy`. */
-function placeFeature(shapes: readonly MascotV2Shape[], to: Point, sx: number, sy: number, id: string): MascotV2FacePart[] {
-  const from = boxOf(shapes.map((shape) => shape.d));
+/** The Faces_V2 face each drawn eye set and mouth comes from. */
+const EYES_FROM = { angry: "angry", blink: "satisfied", curious: "confused", open: "happy", tired: "sleepy" } as const satisfies Record<Exclude<MascotEyes, "sad">, MascotV2FaceName>;
+const MOUTH_FROM = { excited: "excited", happy: "happy", neutral: "confused", sad: "disappointed" } as const satisfies Record<MascotMouth, MascotV2FaceName>;
+
+const shapesOf = (shapes: readonly MascotV2FaceShape[]): MascotV2Shape[] => shapes.map((shape) => ({ d: shape.d, fill: shape.fill, ...(shape.opacity !== undefined ? { opacity: shape.opacity } : {}) }));
+const centreOf = (shapes: readonly MascotV2FaceShape[]): Point => {
+  const box = boxOf(shapes.map((shape) => shape.d));
+  return { x: box.x, y: box.y };
+};
+const minus = (a: Point, b: Point): Point => ({ x: a.x - b.x, y: a.y - b.y });
+
+/** A Faces_V2 face's eye centres (screen-left, screen-right), their midpoint and its mouth centre. */
+function layoutOf(name: MascotV2FaceName) {
+  const face = mascotV2Faces[name];
+  const eyes = [centreOf(face.eyes[0]), centreOf(face.eyes[1])] as const;
+  return { eyes, mouth: centreOf(face.mouth), pair: { x: (eyes[0].x + eyes[1].x) / 2, y: (eyes[0].y + eyes[1].y) / 2 } };
+}
+const LAYOUT = Object.fromEntries(Object.keys(mascotV2Faces).map((name) => [name, layoutOf(name as MascotV2FaceName)])) as Record<MascotV2FaceName, ReturnType<typeof layoutOf>>;
+const OPEN = LAYOUT.happy;
+
+/** How far eyes drawn with the smile sit from where open eyes do, the smile held still. */
+const smileHeld = (name: MascotV2FaceName) => (LAYOUT[name].pair.y - LAYOUT[name].mouth.y) - (OPEN.pair.y - OPEN.mouth.y);
+const EYE_SHIFT_Y: Record<MascotEyes, number> = { angry: 0, blink: smileHeld("satisfied"), curious: 0, open: 0, sad: 0, tired: smileHeld("sleepy") };
+
+/** Where each mouth sits, from the open eyes' midpoint: its distance below the eyes it was drawn with. */
+const mouthFromEyes = (mouth: MascotMouth, eyes: MascotEyes): Point => {
+  const layout = LAYOUT[MOUTH_FROM[mouth]];
+  return { x: layout.mouth.x - layout.pair.x, y: EYE_SHIFT_Y[eyes] + layout.mouth.y - layout.pair.y };
+};
+const MOUTH_AT: Record<MascotMouth, Point> = {
+  excited: mouthFromEyes("excited", "open"),
+  happy: minus(OPEN.mouth, OPEN.pair),
+  neutral: mouthFromEyes("neutral", "curious"),
+  sad: mouthFromEyes("sad", "tired"),
+};
+// Angry eyes keep their height above the frown they were drawn with.
+EYE_SHIFT_Y.angry = MOUTH_AT.sad.y - (LAYOUT.angry.mouth.y - LAYOUT.angry.pair.y);
+
+/** One drawn eye's shapes, and its offset from where the open eye on that side sits. */
+function v2Eye(kind: Exclude<MascotEyes, "sad">, side: 0 | 1): Readonly<{ offset: Point; shapes: readonly MascotV2Shape[] }> {
+  const layout = LAYOUT[EYES_FROM[kind]];
+  const fromPair = minus(layout.eyes[side], layout.pair), openFromPair = minus(OPEN.eyes[side], OPEN.pair);
+  return { offset: { x: fromPair.x - openFromPair.x, y: fromPair.y - openFromPair.y + EYE_SHIFT_Y[kind] }, shapes: shapesOf(mascotV2Faces[EYES_FROM[kind]].eyes[side]) };
+}
+
+/** A drawn mouth with its shadow, and its offset from the smile's centre. */
+function v2Mouth(kind: Exclude<MascotMouth, "happy">): Readonly<{ mouth: readonly MascotV2Shape[]; offset: Point; shadow: readonly MascotV2Shape[] }> {
+  const face = mascotV2Faces[MOUTH_FROM[kind]];
+  return { mouth: shapesOf(face.mouth), offset: minus(MOUTH_AT[kind], MOUTH_AT.happy), shadow: shapesOf(face.shadow) };
+}
+
+/** A polyline as a path. */
+const lineD = (line: readonly Point[]) => serializePath([{ kind: "M", to: line[0]! }, ...line.slice(1).map((p) => ({ kind: "L" as const, to: p }))]);
+
+/**
+ * Moves shapes from their own centre (or the centre of `around`, when given) to `to`, scaling
+ * them about it by `sx` and `sy`.
+ */
+function placeFeature(shapes: readonly MascotV2Shape[], to: Point, sx: number, sy: number, id: string, around: readonly MascotV2Shape[] = shapes): MascotV2FacePart[] {
+  const from = boxOf(around.map((shape) => shape.d));
   return shapes.map((shape, index) => ({
     d: serializePath(mapPath(parsePath(shape.d), (p) => ({ x: to.x + (p.x - from.x) * sx, y: to.y + (p.y - from.y) * sy }))),
     ...(shape.fill ? { fill: shape.fill } : {}),
     id: `${id}-${index}`,
+    ...(shape.opacity !== undefined ? { opacity: shape.opacity } : {}),
     ...(shape.stroke?.color ? { stroke: { color: shape.stroke.color, width: shape.stroke.width } } : {}),
   }));
 }
@@ -224,15 +290,21 @@ export function faceAt(yaw: number, eyes: MascotEyes, mouth: MascotMouth): Masco
     if (eyes === "open") {
       parts.push(...placeFeature(source.shapes, box, (box.w / source.box.w) * width, box.h / source.box.h, `eye-${feature}`));
     } else {
-      // The V1 eye for that side of the face (turning right, the near eye is the screen-left
-      // one), sized like the drawn eye it stands in for.
-      const v1 = v1Eye(eyes, (feature === "near") === (y >= 0));
+      // The drawn eye for that side of the face (turning right, the near eye is the screen-left
+      // one), sized like the open eye it stands in for and offset from it as drawn.
+      const left = (feature === "near") === (y >= 0);
       const front = keys[0]![feature].box;
-      parts.push(...placeFeature(v1, box, (box.w / front.w) * width, box.h / front.h, `eye-${feature}`));
+      const sx = (box.w / front.w) * width, sy = box.h / front.h;
+      if (eyes === "sad") {
+        parts.push(...placeFeature(v1SadEye(left), box, sx, sy, `eye-${feature}`));
+      } else {
+        const eye = v2Eye(eyes, left ? 0 : 1);
+        parts.push(...placeFeature(eye.shapes, { x: box.x + eye.offset.x * sx, y: box.y + eye.offset.y * sy }, sx, sy, `eye-${feature}`));
+      }
     }
   }
   const line = from.mouth.line.map((p, i) => ({ x: lerp(p.x, to.mouth.line[i]!.x, t), y: lerp(p.y, to.mouth.line[i]!.y, t) }));
-  const d = serializePath([{ kind: "M", to: line[0]! }, ...line.slice(1).map((p) => ({ kind: "L" as const, to: p }))]);
+  const d = lineD(line);
   if (mouth === "happy") {
     parts.push({ d, id: "mouth-0", stroke: nearer.mouth.stroke });
     const a = from.mouth.shadow, b = to.mouth.shadow;
@@ -247,8 +319,13 @@ export function faceAt(yaw: number, eyes: MascotEyes, mouth: MascotMouth): Masco
       });
     }
   } else {
-    // Other mouths sit where the smile would be.
-    parts.push(...placeFeature(v1Mouth(mouth), boxOf([d]), 1, 1, "mouth"));
+    // Other mouths sit where their drawing puts them against the smile, with their soft shadow.
+    // Turned, they narrow as the drawn smile does.
+    const drawn = v2Mouth(mouth);
+    const smile = boxOf([d]);
+    const sx = smile.w / boxOf([lineD(keys[0]!.mouth.line)]).w;
+    const at = { x: smile.x + drawn.offset.x * sx, y: smile.y + drawn.offset.y };
+    parts.push(...placeFeature(drawn.shadow, at, sx, 1, "mouth-shadow", drawn.mouth), ...placeFeature(drawn.mouth, at, sx, 1, "mouth"));
   }
   return parts;
 }

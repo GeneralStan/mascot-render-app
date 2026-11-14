@@ -801,6 +801,53 @@ Clutch Mascot Lab poses and shades the Clutch mascot ("Clutchman"), rebuilt as a
   - Risk: `verify:delivery` cannot pass in this Toolcraft version. Four framework conflicts stand in the way, in run order: `ai:check` forbids the `createElementNS`/`setAttribute` calls `core/setup-export.md` prescribes for SVG export; the base-coverage clone test omits the renderer pipeline; the Infinity SVG helper wants the finite SVG's viewBox and hash; the timeline helpers attach evidence without the target their requirements carry.
   - Risk: 23 spec files are slower to run than 3; one worker takes about 12 minutes.
 
+### Iteration 20 — Faces_V2 imported; MascotVM view model previewed; git and GitHub Pages
+
+- Change ID: clutch-faces-v2-and-view-model
+- Active change: clutch-faces-v2-and-view-model
+- Request: "I've drawn the Faces V2--> https://www.figma.com/design/hE0eJAkqKzj3K5JfIcpT8o/Clutch?node-id=293-1448 … ENumerate using the desktop bridge plugin"; "Yes, let's do this as well" (to "View model: connect MascotVM (pace, timeOfDay, the triggers) to the app"); then the answers: face 293:1436 is "face_angry"; the excited face for "goalHit (celebrating),won (cash jump),joined,Just an option"; the view model as the "State preview section".
+- Task type: Figma art import (faces) and a schema/product behaviour change (a new controls section driving the renderer).
+- User-visible result:
+  - Every expression except sad eyes is now the V2 drawing from Faces_V2, with its soft mouth shadow; new Angry eyes and Excited mouth; turned mouths narrow with the smile.
+  - Eyes and Mouth have an Auto option (the new default) that follows the View Model's face.
+  - A View Model section (Pace, Step data, Time of day, Headband, Armbands, Reaction) previews MascotVM: each state's key pose sits under the pose sliders, its face drives Auto, its gear switches hide the headband or armbands, and time of day moves the light.
+  - Cash jump (preset and Won) shows the excited face; Stand hands the face back to Auto.
+- Source/reference checked:
+  - Figma Faces_V2 (293:1448) through the Desktop Bridge: 7 face groups (face_happy, face_Excited, face_satisfied, face_sleepy, face_disappointed, face_confused, face_angry), each eyes + Mouth + mouth_shadow (#687773 at 20%); face_angry's eye group is still named eyes_tired.
+  - `clutch-mascot/CLAUDE.md` (view model, face presets) and `PROMPTS.md` prompt 8 (state machine layers and face priority).
+- Reference inputs: None; `referenceInputs` stays `[]`.
+- Docs/contracts read: `docs/toolcraft/workflow.md`, `core/control-selection.md`, `core/layout.md`, `core/runtime-boundary.md`, `core/performance.md`, `schema-reference.md`, `component-rules.md`, `renderer-technique.md`, `performance.md`.
+- Contract rules applied:
+  - Built-in controls only: slider (Pace), switches (Step data, Headband, Armbands; the gear pair inline), a segmented Time of day (4 options, 22 characters), a Reaction select (6 options, over the segmented budget).
+  - No synchronisation between controls (there is no value-change port): the view model acts at render time in `buildMascotScene`, so preview, raster, SVG, video and bounds agree.
+  - Every option changes the output (each-visible-item coverage); every finite selector is classified (all `parameter`).
+  - Saved defaults list every value target, so `app-defaults.json` gains the six `vm.*` values and Eyes/Mouth switch to Auto.
+- View interaction intent: `orbit` (unchanged).
+- Interaction ownership: Unchanged. The View Model's pose sits under the panel's pose sliders (they add to it); the gimbal still owns the camera.
+- Decision:
+  - `mascot-v2-faces.ts` is generated from the Faces_V2 SVG export (`generate-v2-faces.mjs`, documented in `docs/mascot-v2-import.md`). Eye sets come from face_satisfied (blink), face_sleepy (tired), face_confused (curious), face_angry (angry); mouths from face_Excited, face_confused (neutral) and face_disappointed (sad).
+  - Layout (`mascot-v2-face.ts`): eyes drawn with the smile keep their height above it; a mouth keeps its distance below the eyes it was drawn with; angry eyes keep theirs above the frown. Measured against face_happy and laid against Standing's eyes and smile (Standing's smile sits 2.8 px further below its eyes).
+  - `mascot-view-model.ts`: body state Idle (pace 100+ or no step data), Walking (40–99), Tired (under 40); face priority goalHit/won/joined excited, out sad, Tired disappointed, no step data confused, night sleepy, else happy. Key poses as offsets from rest (numbers add to the sliders; a hand or bag left at default takes the state's). Goal hit and Won replace the body state; Tap, Joined and Out play over it, as in Rive's layers. Walking turns side-on the way he faces.
+  - Time of day also moves the light (morning +20°, evening mirrored), so every option renders differently; Night adds the sleepy face. Flagged to the user: Rive can't re-light.
+  - The cash jump's face is now excited (user's answer); CLAUDE.md and PROMPTS.md face presets updated to match.
+- Alternatives rejected:
+  - **Trigger buttons that write pose values.** A trigger is momentary; a value-backed Reaction select is the honest static preview and needs no hidden state.
+  - **Writing the state into the pose controls when Pace changes.** No value-change port exists, and effect-based syncing is forbidden.
+  - **A Preview mode switch hiding the pose sections.** That is an application mode the user didn't ask for.
+  - **Leaving Morning, Day and Evening identical.** Each option must change the output.
+- State/output mapping: `vm.*` → `readMascotSettings().vm/gear` → `applyMascotViewModel` (pose offsets, light) → `mascotSceneInput` (`resolveMascotFace` for Auto, gear) → `buildMascotV2Scene` (gear pieces skipped) → one `MascotScene` for preview, PNG/JPG, SVG, video and bounds.
+- Other work in this batch: `git init` with two commits (the app, the Pages workflow), merged with the GitHub repo's README and pushed to GeneralStan/mascot-render-app; GitHub Pages deploys `dist` built with `--base=/<repo>/` (live at https://generalstan.github.io/mascot-render-app/). V2 views and faces exported as SVG to `clutch-mascot/figma/v2/`; `clutch-mascot/PROMPT-V2-RIVE-REBUILD.md` written for the Rive agent.
+- Verification (focused):
+  - `npx vitest run src/app/mascot/`: 341 tests in 13 files (including the new `mascot-view-model.test.ts`); all pass, though one scene test timed out at 5 s while Playwright ran alongside and passed alone in 2.7 s.
+  - `npx vitest run src/app`: one failure, the known base-coverage framework conflict (the pipeline-integration test timed out under load and passed alone).
+  - `npm run test:feature` can't run here: its product-boundary scan takes about 41 s (the runner allows 20 s) and rejects `mascot-svg-export.ts`, framework conflict 1. Ran instead, against a fresh build: `TOOLCRAFT_BROWSER_SERVER_MODE=preview npx playwright test e2e/product-vm.spec.ts e2e/product-face.spec.ts e2e/product-pose.spec.ts --workers=1 --reporter=list`. 7 passed; vm.pace and face.eyes failed on the preview server's identity request (reset and timeout while unit tests loaded the machine) and both passed on a rerun. So all 9 rows pass: vm.pace, vm.hasStepData, vm.timeOfDay, vm.gearHeadband, vm.gearArmbands, vm.reaction, face.eyes, face.mouth and pose.preset.
+  - `files:check` and `docs:check` pass.
+  - The View Model section was checked in the running app (headless screenshot): Time of day's four cells fit, Headband and Armbands share a row, Won shows the cash jump with the excited face over Night.
+- Risks:
+  - Risk: the key poses for tired, celebrating, thumbs up, wave and shrug are agent-authored offsets from PROMPTS.md's descriptions; the user should judge them.
+  - Risk: the time-of-day light is a Mascot Lab extra with no Rive equivalent.
+  - Risk: Faces_V2 is front-only; turned views place the front drawings (narrowed mouths), so 3/4 expressions are an approximation until 3/4 faces are drawn.
+
 ## Decisions
 
 ### Renderer
@@ -839,7 +886,7 @@ Clutch Mascot Lab poses and shades the Clutch mascot ("Clutchman"), rebuilt as a
 
 ### Controls
 
-- Decision: Sections View, Body (Stand/Walk/Cash jump Pose actions and Turn), Body Pivot (the Position pad, shown in the preview as the pivot marker), Face, one section per limb (with Hand and Money bag on the arms), Light, Body Shading (Visible, Size, Highlight), Ground/Cast/Drop Shadow.
+- Decision: Sections View, View Model (MascotVM: Pace, Step data, Time of day, Headband, Armbands, Reaction), Body (Stand/Walk/Cash jump Pose actions and Turn), Body Pivot (the Position pad, shown in the preview as the pivot marker), Face (Eyes and Mouth, Auto by default), one section per limb (with Hand and Money bag on the arms), Light, Body Shading (Visible, Size, Highlight), Ground/Cast/Drop Shadow.
 - Reason: Grouped by the mascot entity each control edits and by shadow kind.
 - Evidence: `src/app/mascot/mascot-controls.ts`, `appControlSectionInventory`.
 

@@ -54,18 +54,21 @@ Pivots: each group starts with 8px dots that mark its joints:
 Put bones on the dots. Don't bind, animate or export the dots.
 
 Face, on Mascot_Front and Mascot_ThreeQuarter: Body > face holds the eye groups and mouth groups, stacked and already lined up. Show exactly one eye group and one mouth group at a time, and hide the rest. The default is eyes_open and mouth_happy. They all arrive from Figma visible, so hide the rest first. Mascot_Back has no face. Mascot_Side has one eye and one mouth only.
-- V2 draws only eyes_open and mouth_happy. mouth_happy includes a soft shadow, a second stroke that fades out.
-- Until V2 versions are drawn, reuse the V1 groups for eyes_blink, eyes_tired, eyes_sad, eyes_curious, mouth_neutral and mouth_sad.
-- Eyes: eyes_open, eyes_blink, eyes_tired, eyes_sad, eyes_curious
-- Mouths: mouth_happy, mouth_neutral, mouth_sad
+- Each V2 view draws eyes_open and mouth_happy. mouth_happy includes a soft shadow, a second stroke that fades out.
+- Every other expression is drawn in Faces_V2 (node 293:1448, front view only), one group per face, each with its eyes, Mouth and mouth_shadow: face_happy, face_Excited, face_satisfied, face_sleepy, face_disappointed, face_confused and face_angry. face_angry's eye group is still named eyes_tired in Figma; it holds eyes_angry.
+- eyes_sad isn't drawn in V2 yet. Reuse the V1 group until it is.
+- Eyes: eyes_open, eyes_blink, eyes_tired, eyes_sad, eyes_curious, eyes_angry
+- Mouths: mouth_happy, mouth_excited, mouth_neutral, mouth_sad
 
 Face presets (eyes + mouth, then where each is used):
-- happy: eyes_open + mouth_happy. Idle, joined.
-- satisfied: eyes_blink + mouth_happy. Celebrating and cash_jump (goalHit, won).
+- happy: eyes_open + mouth_happy. Idle.
+- excited: eyes_open + mouth_excited. Celebrating, cash_jump and joined (goalHit, won, joined).
+- satisfied: eyes_blink + mouth_happy. No state uses it.
 - sleepy: eyes_tired + mouth_happy. timeOfDay night.
 - disappointed: eyes_tired + mouth_sad. Tired.
 - confused: eyes_curious + mouth_neutral. hasStepData false.
 - sad: eyes_sad + mouth_sad. out, when the user fails a challenge or doesn't complete it.
+- angry: eyes_angry + mouth_sad. No state uses it yet.
 - The idle blink is eyes_blink for 0.12 seconds, then back to eyes_open.
 
 Rig:

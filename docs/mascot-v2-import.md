@@ -481,3 +481,143 @@ ${Object.entries(props).map(([k, p]) => `  ${k}: {\n    figmaNode: ${j(p.figmaNo
 fs.writeFileSync(outPath, out);
 console.log(`wrote ${outPath}: ${out.split("\n").length} lines, ${out.length} bytes`);
 ```
+
+## Faces (Faces_V2)
+
+`src/app/mascot/mascot-v2-faces.ts` is generated from the group Faces_V2 (`293:1448`) in the same frame:
+one face group per expression (face_happy, face_Excited, face_satisfied, face_sleepy, face_disappointed,
+face_confused, face_angry), each with its eyes, `Mouth` and `mouth_shadow`. Regenerate it after the
+faces change in Figma. Don't edit it by hand.
+
+1. Start the receiver from above: `node receive.mjs "$PWD/faces-v2.json" 9230`.
+2. Run this through the figma-console `figma_execute` tool in the Clutch file (timeout 30000). Figma
+   outlines every stroke on export, so each face shape arrives as one filled path.
+
+   ```js
+   const node = await figma.getNodeByIdAsync("293:1448");
+   const bytes = await node.exportAsync({ format: "SVG", svgIdAttribute: true, svgOutlineText: true, svgSimplifyStroke: false });
+   let s = ""; for (let i = 0; i < bytes.length; i += 8192) s += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 8192)));
+   const res = await fetch("http://localhost:9230/", { method: "POST", body: JSON.stringify({ id: node.id, name: node.name, svg: s }) });
+   return { status: res.status, text: await res.text() };
+   ```
+
+3. Generate the module, then run the face tests:
+
+   ```sh
+   node generate-v2-faces.mjs faces-v2.json /Users/ifeanyi/Sandbox/Clutch/src/app/mascot/mascot-v2-faces.ts
+   npx vitest run src/app/mascot/mascot-view-model.test.ts src/app/mascot/mascot-v2-scene.test.ts
+   ```
+
+The generator stops on an unknown face group, a part other than `eyes_*`, `Mouth` or `mouth_shadow`, a
+fill outside the face palette (#031E19, #FCFCFC, shadow #687773 at 20%), a transformed shape, or a face
+without two eyes. It splits each face's eyes into screen-left and screen-right about the middle of the
+eye set. `mascot-v2-face.ts` places the faces on the head; see its header for the layout rules.
+
+### generate-v2-faces.mjs
+
+```js
+// Generates src/app/mascot/mascot-v2-faces.ts from the Faces_V2 SVG export (a JSON body with `svg`).
+// Stops on anything it doesn't recognise, so a renamed or restyled face is caught here, not guessed.
+import fs from "node:fs";
+
+const [inPath, outPath] = process.argv.slice(2);
+if (!inPath || !outPath) throw new Error("usage: node generate-v2-faces.mjs <faces-v2.json> <out.ts>");
+const { svg } = JSON.parse(fs.readFileSync(inPath, "utf8"));
+
+const FACES = ["happy", "excited", "satisfied", "sleepy", "disappointed", "confused", "angry"];
+const INK = "#031E19", SHINE = "#FCFCFC", SHADOW = "#687773";
+const fail = (message) => { throw new Error(`generate-v2-faces: ${message}`); };
+const attr = (attrs, name) => attrs.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
+
+// Walk the tags, keeping the stack of group ids above each path.
+const stack = [];
+const shapes = [];
+for (const [, close, tag, attrs, selfClose] of svg.matchAll(/<(\/?)(svg|g|path)\b([^>]*?)(\/?)>/g)) {
+  if (close) { stack.pop(); continue; }
+  if (attr(attrs, "transform")) fail(`a transformed <${tag}> (${attr(attrs, "id") ?? "no id"}); flatten it in Figma`);
+  const id = attr(attrs, "id") ?? "";
+  if (tag === "path") {
+    shapes.push({ d: attr(attrs, "d"), fill: attr(attrs, "fill"), groups: [...stack, id], opacity: attr(attrs, "opacity") });
+    if (!selfClose) stack.push(id);
+  } else if (!selfClose) stack.push(id);
+}
+
+/** Figma de-duplicates repeated names with _2, _3 …; strip that. */
+const plain = (id) => id.replace(/_\d+$/, "");
+
+/** Every coordinate pair of an absolute Figma path (M, L, H, V, C, Q, Z). */
+function bounds(d) {
+  const xs = [], ys = [];
+  let x = 0, y = 0;
+  for (const [, command, args] of d.matchAll(/([MLHVCQZ])([^MLHVCQZ]*)/gi)) {
+    if (command !== command.toUpperCase()) fail(`relative path command "${command}"`);
+    const n = (args.match(/-?\d*\.?\d+(?:e-?\d+)?/gi) ?? []).map(Number);
+    if (command === "H") for (const v of n) { x = v; xs.push(x); ys.push(y); }
+    else if (command === "V") for (const v of n) { y = v; xs.push(x); ys.push(y); }
+    else for (let i = 0; i + 1 < n.length; i += 2) { x = n[i]; y = n[i + 1]; xs.push(x); ys.push(y); }
+  }
+  return { maxX: Math.max(...xs), maxY: Math.max(...ys), minX: Math.min(...xs), minY: Math.min(...ys) };
+}
+const centreX = (b) => (b.minX + b.maxX) / 2;
+
+const faces = {};
+for (const shape of shapes) {
+  const [, root, faceId, featureId] = shape.groups; // svg, Faces_V2, face_*, the feature under it
+  if (root !== "Faces_V2") fail(`a shape outside Faces_V2 (${shape.groups.join(" > ")})`);
+  const name = plain(faceId ?? "").replace(/^face_/, "").toLowerCase();
+  if (!FACES.includes(name)) fail(`unknown face group "${faceId}"`);
+  const feature = plain(featureId ?? "");
+  const kind = feature.startsWith("eyes_") ? "eyes" : feature === "Mouth" ? "mouth" : feature === "mouth_shadow" ? "shadow" : fail(`unknown part "${featureId}" in ${faceId}`);
+  const fill = shape.fill?.toUpperCase();
+  const allowed = kind === "eyes" ? [INK, SHINE] : kind === "mouth" ? [INK] : [SHADOW];
+  if (!allowed.includes(fill)) fail(`${faceId} > ${featureId}: fill ${shape.fill} (expected ${allowed.join(" or ")})`);
+  const opacity = shape.opacity === undefined ? undefined : Number(shape.opacity);
+  if (kind === "shadow" ? opacity !== 0.2 : opacity !== undefined) fail(`${faceId} > ${featureId}: opacity ${shape.opacity}`);
+  faces[name] ??= { eyes: [], mouth: [], shadow: [] };
+  faces[name][kind].push({ d: shape.d, fill, ...(opacity !== undefined ? { opacity } : {}) });
+}
+
+const out = {};
+for (const name of FACES) {
+  const face = faces[name] ?? fail(`missing face_${name}`);
+  if (!face.mouth.length || !face.shadow.length || !face.eyes.length) fail(`face_${name} needs eyes, a Mouth and a mouth_shadow`);
+  // Split the eyes into screen-left and screen-right about the middle of the eye set.
+  const all = face.eyes.map((shape) => bounds(shape.d));
+  const middle = (Math.min(...all.map((b) => b.minX)) + Math.max(...all.map((b) => b.maxX))) / 2;
+  const left = face.eyes.filter((_, i) => centreX(all[i]) < middle);
+  const right = face.eyes.filter((_, i) => centreX(all[i]) >= middle);
+  if (!left.length || !right.length) fail(`face_${name} needs two eyes`);
+  out[name] = { eyes: [left, right], mouth: face.mouth, shadow: face.shadow };
+}
+
+const extra = Object.keys(faces).filter((name) => !FACES.includes(name));
+if (extra.length) fail(`unexpected faces: ${extra.join(", ")}`);
+
+const source = `// Generated from the Clutch Figma file (hE0eJAkqKzj3K5JfIcpT8o), group Faces_V2 (293:1448), by
+// generate-v2-faces.mjs (docs/mascot-v2-import.md). Don't edit by hand; regenerate after the faces change.
+//
+// Coordinates are Faces_V2's own (px, y down). The faces sit side by side there, not on the head;
+// mascot-v2-face.ts places them. Each face keeps its eyes, its mouth and the mouth's soft shadow.
+// In Figma, face_angry's eye group is still named eyes_tired; the generator goes by the face name.
+
+export type MascotV2FaceShape = Readonly<{ d: string; fill: string; opacity?: number }>;
+
+export type MascotV2FaceDrawing = Readonly<{
+  /** The screen-left eye, then the screen-right eye. */
+  eyes: readonly [readonly MascotV2FaceShape[], readonly MascotV2FaceShape[]];
+  mouth: readonly MascotV2FaceShape[];
+  /** The soft shadow under the mouth. */
+  shadow: readonly MascotV2FaceShape[];
+}>;
+
+export const mascotV2FaceNames = ${JSON.stringify(FACES)} as const;
+
+export type MascotV2FaceName = (typeof mascotV2FaceNames)[number];
+
+export const mascotV2Faces: Readonly<Record<MascotV2FaceName, MascotV2FaceDrawing>> = {
+${FACES.map((name) => `  ${name}: ${JSON.stringify(out[name])},`).join("\n")}
+};
+`;
+fs.writeFileSync(outPath, source);
+console.log(`wrote ${outPath}: ${FACES.map((name) => `${name} (${out[name].eyes[0].length}+${out[name].eyes[1].length} eye shapes, ${out[name].mouth.length} mouth)`).join(", ")}`);
+```

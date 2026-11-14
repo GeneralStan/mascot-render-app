@@ -2,6 +2,14 @@
 
 > Written 2026-11-13. Read this before touching the codebase.
 
+## Update 2026-11-14
+
+- **Git and hosting:** the folder is a git repo (branch `main`) pushed to https://github.com/GeneralStan/mascot-render-app (public). `.github/workflows/pages.yml` builds with `--base=/<repo>/` and deploys GitHub Pages on every push to `main`: https://generalstan.github.io/mascot-render-app/. The SSH key belongs to ifeanyi-99, so push over HTTPS with the GeneralStan token (`gh auth token -u GeneralStan` as a one-off credential helper); don't switch the user's active `gh` account.
+- **Faces V2:** `src/app/mascot/mascot-v2-faces.ts` is generated from Faces_V2 (node `293:1448`); the generator is in `docs/mascot-v2-import.md`. All expressions except sad eyes are V2; new Angry eyes and Excited mouth. Eyes/Mouth default to **Auto**.
+- **View Model section:** previews MascotVM (`src/app/mascot/mascot-view-model.ts`): pace, step data, time of day, gear and a Reaction picker for the triggers. The state's key pose sits under the pose sliders; Auto face follows it; time of day also moves the light (a Mascot Lab extra).
+- **Rive:** V2 views and faces are exported as SVG to `clutch-mascot/figma/v2/`; `clutch-mascot/PROMPT-V2-RIVE-REBUILD.md` is the prompt for rebuilding the `.riv` from V2.
+- **Focused browser checks:** `npm run test:feature` can't run in this app: its product-boundary scan rejects `mascot-svg-export.ts` (framework conflict 1) and takes about 40 s, past the runner's 20 s limit. Build and run Playwright on the affected spec files instead: `npx vite build && TOOLCRAFT_BROWSER_SERVER_MODE=preview npx playwright test e2e/product-<domain>.spec.ts --workers=1 --reporter=list`.
+
 ## What this project is
 
 **Clutch Mascot Lab** is a Vite + React "Toolcraft" app that poses, lights, animates and exports the Clutch mascot ("Clutchman"). The mascot art is drawn by the user in Figma and imported into the app as generated TypeScript data. The app renders it as SVG with its own code rig — it does not read the `.riv` file.

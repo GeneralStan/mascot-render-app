@@ -34,6 +34,10 @@ const BRANCH_VALUES: Readonly<Record<string, Values>> = {
   [t.dropOffsetX]: { [t.dropVisible]: true },
   [t.dropOffsetY]: { [t.dropVisible]: true },
   [t.dropBlur]: { [t.dropVisible]: true },
+  // Auto eyes and mouth are the happy face by default, like Open and Happy; with no step data
+  // they are the confused face, so every eye set and mouth differs.
+  [t.faceEyes]: { [t.vmHasStepData]: false },
+  [t.faceMouth]: { [t.vmHasStepData]: false },
 };
 
 function sceneSignature(values: Values): string {
@@ -45,6 +49,8 @@ function alternateValues(control: (typeof controlsByTarget extends Map<string, i
     case "slider": {
       // The wave phase is periodic: 360° looks the same as 0°.
       if (control.target === t.hairWavePhase) return [90];
+      // Pace 100 and 150 are both Idle: Walking and Tired are below.
+      if (control.target === t.vmPace) return [70, 20];
       const value = control.defaultValue as number;
       return [value === control.max ? control.min : control.max];
     }
@@ -122,8 +128,13 @@ function verifyControlRow(target: string): void {
   const baseline = sceneSignature(base);
   const alternates = alternateValues(control);
   expect(alternates.length, `alternate values for ${target}`).toBeGreaterThan(0);
+  // Each value differs from the one before it (Auto eyes and mouth equal one drawn set, so a
+  // later option may match the default; the browser proof cycles the same way).
+  let previous = baseline;
   for (const value of alternates) {
-    expect(sceneSignature({ ...base, [target]: value }), `${target} = ${JSON.stringify(value)}`).not.toBe(baseline);
+    const signature = sceneSignature({ ...base, [target]: value });
+    expect(signature, `${target} = ${JSON.stringify(value)}`).not.toBe(previous);
+    previous = signature;
   }
 }
 

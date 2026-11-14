@@ -72,25 +72,58 @@ export const mascotTargets = {
   dropOffsetX: "dropShadow.offsetX",
   dropOffsetY: "dropShadow.offsetY",
   dropBlur: "dropShadow.blur",
+  vmPace: "vm.pace",
+  vmHasStepData: "vm.hasStepData",
+  vmTimeOfDay: "vm.timeOfDay",
+  vmGearHeadband: "vm.gearHeadband",
+  vmGearArmbands: "vm.gearArmbands",
+  vmReaction: "vm.reaction",
 } as const;
 
-export type MascotEyes = "open" | "blink" | "curious" | "sad" | "tired";
-export type MascotMouth = "happy" | "neutral" | "sad";
+export type MascotEyes = "open" | "blink" | "curious" | "sad" | "tired" | "angry";
+export type MascotMouth = "happy" | "excited" | "neutral" | "sad";
+/** The Face controls: a drawn set, or Auto, which follows the view model's face. */
+export type MascotEyesChoice = MascotEyes | "auto";
+export type MascotMouthChoice = MascotMouth | "auto";
 export type MascotHand = "open" | "fist" | "thumbsUp";
+/** MascotVM's `timeOfDay`. */
+export type MascotTimeOfDay = "morning" | "day" | "evening" | "night";
+/** The MascotVM trigger whose reaction is shown, or none. */
+export type MascotReaction = "none" | "goalHit" | "joined" | "won" | "out" | "tap";
 
 export const eyesOptions = [
+  { label: "Auto", value: "auto" },
   { label: "Open", value: "open" },
   { label: "Blink", value: "blink" },
-  { label: "Curious", value: "curious" },
-  { label: "Sad", value: "sad" },
   { label: "Tired", value: "tired" },
-] as const satisfies readonly { label: string; value: MascotEyes }[];
+  { label: "Curious", value: "curious" },
+  { label: "Angry", value: "angry" },
+  { label: "Sad", value: "sad" },
+] as const satisfies readonly { label: string; value: MascotEyesChoice }[];
 
 export const mouthOptions = [
+  { label: "Auto", value: "auto" },
   { label: "Happy", value: "happy" },
+  { label: "Excited", value: "excited" },
   { label: "Neutral", value: "neutral" },
   { label: "Sad", value: "sad" },
-] as const satisfies readonly { label: string; value: MascotMouth }[];
+] as const satisfies readonly { label: string; value: MascotMouthChoice }[];
+
+export const timeOfDayOptions = [
+  { label: "Morning", value: "morning" },
+  { label: "Day", value: "day" },
+  { label: "Evening", value: "evening" },
+  { label: "Night", value: "night" },
+] as const satisfies readonly { label: string; value: MascotTimeOfDay }[];
+
+export const reactionOptions = [
+  { label: "None", value: "none" },
+  { label: "Goal hit", value: "goalHit" },
+  { label: "Joined", value: "joined" },
+  { label: "Won", value: "won" },
+  { label: "Out", value: "out" },
+  { label: "Tap", value: "tap" },
+] as const satisfies readonly { label: string; value: MascotReaction }[];
 
 export const handOptions = [
   { label: "Open", value: "open" },
@@ -140,7 +173,11 @@ export type MascotSettings = Readonly<{
    */
   body: Readonly<{ lean: number; lift: number; pivot: MascotVector; softness: number; squash: number; turn: number }>;
   hair: Readonly<{ bandTilt: number; bend: number; sweep: number; wave: number; wavePhase: number }>;
-  face: Readonly<{ eyes: MascotEyes; mouth: MascotMouth }>;
+  face: Readonly<{ eyes: MascotEyesChoice; mouth: MascotMouthChoice }>;
+  /** MascotVM: what the app tells the mascot. See `mascot-view-model.ts`. */
+  vm: Readonly<{ hasStepData: boolean; pace: number; reaction: MascotReaction; timeOfDay: MascotTimeOfDay }>;
+  /** MascotVM's gear switches: the headband and both armbands, on or off. */
+  gear: Readonly<{ armbands: boolean; headband: boolean }>;
   armLeft: MascotArmPose;
   armRight: MascotArmPose;
   legLeft: MascotLegPose;
@@ -202,6 +239,8 @@ export const mascotRanges = {
   castBlur: { defaultValue: 4, hardMax: 120, hardMin: 0, max: 40, min: 0, step: 0.5 },
   dropBlur: { defaultValue: 0, hardMax: 120, hardMin: 0, max: 40, min: 0, step: 0.5 },
   dropOffset: { defaultValue: 12, hardMax: 400, hardMin: -400, max: 80, min: -80, step: 1 },
+  // MascotVM's pace (0 to 150). 100 and up is Idle, so the default shows the resting mascot.
+  vmPace: { defaultValue: 100, hardMax: 150, hardMin: 0, max: 150, min: 0, step: 1 },
 } as const satisfies Record<string, MascotRange>;
 
 export const mascotDefaults = {
@@ -211,8 +250,13 @@ export const mascotDefaults = {
   flipHand: false,
   hand: "open" as MascotHand,
   moneyBag: false,
-  faceEyes: "open" as MascotEyes,
-  faceMouth: "happy" as MascotMouth,
+  faceEyes: "auto" as MascotEyesChoice,
+  faceMouth: "auto" as MascotMouthChoice,
+  vmHasStepData: true,
+  vmTimeOfDay: "day" as MascotTimeOfDay,
+  vmGearHeadband: true,
+  vmGearArmbands: true,
+  vmReaction: "none" as MascotReaction,
   bodyPivot: { x: 0, y: 0 } as MascotVector,
   shadingVisible: true,
   shadingHighlight: true,
@@ -385,6 +429,16 @@ export function readMascotSettings(values: ValueRecord): MascotSettings {
     face: {
       eyes: readChoice(values, t.faceEyes, eyesOptions, d.faceEyes),
       mouth: readChoice(values, t.faceMouth, mouthOptions, d.faceMouth),
+    },
+    vm: {
+      hasStepData: readBoolean(values, t.vmHasStepData, d.vmHasStepData),
+      pace: readNumber(values, t.vmPace, r.vmPace),
+      reaction: readChoice(values, t.vmReaction, reactionOptions, d.vmReaction),
+      timeOfDay: readChoice(values, t.vmTimeOfDay, timeOfDayOptions, d.vmTimeOfDay),
+    },
+    gear: {
+      armbands: readBoolean(values, t.vmGearArmbands, d.vmGearArmbands),
+      headband: readBoolean(values, t.vmGearHeadband, d.vmGearHeadband),
     },
     armLeft: readArm(values, {
       bandTilt: t.armLeftBandTilt, elbow: t.armLeftElbow, flipHand: t.armLeftFlipHand, hand: t.armLeftHand, length: t.armLeftLength, moneyBag: t.armLeftMoneyBag,

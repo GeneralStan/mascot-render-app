@@ -14,7 +14,7 @@ On Mascot_Front, add a skeleton: a root bone at the hips and a body bone up to t
 ## 4. Idle and faces
 Create these linear animations on Mascot_Front.
 idle: 2 seconds, looping. The body squashes 2% wider and shorter and settles, like breathing. The hair lags the body slightly. The arms sway 3 degrees. Ease in and out. Start and end on the same pose. Don't key the face.
-One face animation per preset in CLAUDE.md: face_happy, face_satisfied, face_sleepy, face_disappointed, face_confused, face_sad. Each is a single frame that shows that preset's eye and mouth groups and hides all the others.
+One face animation per preset in CLAUDE.md: face_happy, face_excited, face_satisfied, face_sleepy, face_disappointed, face_confused, face_sad, face_angry. Each is a single frame that shows that preset's eye and mouth groups and hides all the others.
 face_happy_blink: 3 seconds, looping. The happy face, with eyes_blink shown instead of eyes_open from 2.6 to 2.72 seconds.
 
 ## 5. Walk cycle (side view)
@@ -45,7 +45,7 @@ Each ends on the idle pose.
 Create a view model called MascotVM with the properties listed in CLAUDE.md and bind it to a state machine called Mascot. Build four layers:
 1. Body: Entry goes to Idle. Idle to Walking when pace is 40 to 99; to Tired when pace is under 40; Walking and Tired swap when pace crosses 40; back to Idle when pace is 100 or more or hasStepData is false. From any state, goalHit goes to Celebrating and won goes to CashJump. Each plays once and then returns to the state pace picks.
 2. Reactions: tap plays wave, joined plays thumbs_up, out plays shrug, each once.
-3. Face: plays the face animations from step 4. Highest priority first: Celebrating and CashJump show face_satisfied; out shows face_sad for 3 seconds; Tired shows face_disappointed; hasStepData false shows face_confused; timeOfDay night shows face_sleepy; otherwise face_happy_blink.
+3. Face: plays the face animations from step 4. Highest priority first: Celebrating, CashJump and joined show face_excited; out shows face_sad for 3 seconds; Tired shows face_disappointed; hasStepData false shows face_confused; timeOfDay night shows face_sleepy; otherwise face_happy_blink.
 4. Gear: gearHeadband and gearArmbands show or hide the gear.
 Use 0.2 second blends between looping states. Describe every state and transition back to me in a list.
 

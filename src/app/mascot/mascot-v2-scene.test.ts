@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parsePath, type Point } from "./mascot-path";
 import { MASCOT_GROUND_Y, type MascotScene } from "./mascot-scene-types";
 import { MASCOT_V2_REST_HAIR } from "./mascot-v2-hair";
+import { mascotV2Faces } from "./mascot-v2-faces";
 import { mascotV2Colors, mascotV2Views } from "./mascot-v2-parts";
 import { MASCOT_V2_REST_POSE, type MascotV2LimbPose } from "./mascot-v2-pose";
 import { cameraLight, lightAzimuth, MASCOT_V2_DRAWN_LIGHT_ANGLE, mixHex } from "./mascot-relight";
@@ -142,20 +143,55 @@ describe("V2 scene", () => {
     }
   });
 
-  it("puts the other expressions where the open eyes and mouth are", () => {
-    const eyesAt = (eyes: MascotV2SceneInput["face"]["eyes"]) => centre(mascotShapes(scene({ face: { eyes, mouth: "happy" } })).filter((s) => s.id.startsWith("face-eye-near")).map((s) => s.d));
-    const open = eyesAt("open");
-    for (const eyes of ["blink", "curious", "sad", "tired"] as const) {
-      const at = eyesAt(eyes);
-      expect(Math.hypot(at.x - open.x, at.y - open.y), eyes).toBeLessThan(1);
+  it("draws each Faces_V2 face with its drawn layout, the smile and open eyes where Standing has them", () => {
+    const shapesOf = (face: MascotV2SceneInput["face"], prefix: string) =>
+      mascotShapes(scene({ face })).filter((s) => s.id.startsWith(prefix) && !s.id.includes("shadow")).map((s) => s.d);
+    // Mouths are compared by the lines themselves (the happy mouth's soft shadow is left out).
+    const layout = (face: MascotV2SceneInput["face"]) => {
+      const left = centre(shapesOf(face, "face-eye-near")), right = centre(shapesOf(face, "face-eye-far"));
+      const pair = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 };
+      return { left, mouth: centre(shapesOf(face, "face-mouth")), pair, right };
+    };
+    const drawn = (name: keyof typeof mascotV2Faces) => {
+      const face = mascotV2Faces[name];
+      const left = centre(face.eyes[0].map((s) => s.d)), right = centre(face.eyes[1].map((s) => s.d));
+      return { left, mouth: centre(face.mouth.map((s) => s.d)), pair: { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 }, right };
+    };
+    const happy = layout({ eyes: "open", mouth: "happy" });
+    const cases = [
+      ["excited", { eyes: "open", mouth: "excited" }],
+      ["satisfied", { eyes: "blink", mouth: "happy" }],
+      ["sleepy", { eyes: "tired", mouth: "happy" }],
+      ["disappointed", { eyes: "tired", mouth: "sad" }],
+      ["confused", { eyes: "curious", mouth: "neutral" }],
+      ["angry", { eyes: "angry", mouth: "sad" }],
+    ] as const;
+    // Standing's smile sits a little further below its eyes than face_happy's, so each face is laid
+    // against Standing's: relative to the happy face, its eyes-to-mouth layout changes as drawn.
+    const open = drawn("happy");
+    for (const [name, face] of cases) {
+      const placed = layout(face), figma = drawn(name);
+      expect(placed.mouth.y - placed.pair.y - (happy.mouth.y - happy.pair.y), name).toBeCloseTo(figma.mouth.y - figma.pair.y - (open.mouth.y - open.pair.y), 1);
+      expect(Math.abs(placed.mouth.x - placed.pair.x - (happy.mouth.x - happy.pair.x) - (figma.mouth.x - figma.pair.x - (open.mouth.x - open.pair.x))), name).toBeLessThan(0.6);
+      // Each eye keeps its drawn spacing.
+      expect(placed.right.x - placed.left.x - (happy.right.x - happy.left.x), name).toBeCloseTo(figma.right.x - figma.left.x - (open.right.x - open.left.x), 1);
+      // The smile stays where Standing draws it; the eye-pair stays put otherwise, unless the frown sets it.
+      if (face.mouth === "happy") expect(Math.hypot(placed.mouth.x - happy.mouth.x, placed.mouth.y - happy.mouth.y), name).toBeLessThan(0.05);
+      if (face.eyes === "open" || face.eyes === "curious") expect(Math.abs(placed.pair.y - happy.pair.y), name).toBeLessThan(0.05);
     }
-    // The happy mouth's soft shadow sits under it, so compare the mouth lines themselves.
-    const mouthAt = (mouth: MascotV2SceneInput["face"]["mouth"]) => centre(mascotShapes(scene({ face: { eyes: "open", mouth } })).filter((s) => s.id.startsWith("face-mouth") && !s.id.includes("shadow")).map((s) => s.d));
-    const happy = mouthAt("happy");
-    for (const mouth of ["neutral", "sad"] as const) {
-      const at = mouthAt(mouth);
-      expect(Math.hypot(at.x - happy.x, at.y - happy.y), mouth).toBeLessThan(1);
-    }
+    // Sad eyes are still V1, centred on the open eyes.
+    const sad = layout({ eyes: "sad", mouth: "happy" });
+    expect(Math.hypot(sad.left.x - happy.left.x, sad.left.y - happy.left.y)).toBeLessThan(1);
+  });
+
+  it("narrows a drawn mouth as the turn narrows the smile", () => {
+    const width = (turn: number) => {
+      const ds = mascotShapes(scene({ face: { eyes: "open", mouth: "excited" }, turn })).filter((s) => s.id.startsWith("face-mouth") && !s.id.includes("shadow")).map((s) => s.d);
+      const xs = ds.flatMap((d) => pointsOf(d).map((p) => p.x));
+      return Math.max(...xs) - Math.min(...xs);
+    };
+    expect(width(30)).toBeLessThan(width(0));
+    expect(width(90)).toBeLessThan(width(30));
   });
 
   it("tucks a near arm's outline in at the shoulder so it grows out of the body", () => {

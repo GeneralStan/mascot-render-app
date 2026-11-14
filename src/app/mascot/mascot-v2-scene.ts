@@ -74,6 +74,8 @@ export type MascotV2SceneInput = Readonly<{
   cast: MascotSettings["cast"];
   drop: MascotSettings["drop"];
   face: Readonly<{ eyes: MascotEyes; mouth: MascotMouth }>;
+  /** The headband and armbands, shown (as drawn) unless switched off. */
+  gear?: MascotSettings["gear"];
   ground: MascotSettings["ground"];
   hair: MascotV2HairPose & Readonly<{ bandTilt: number }>;
   lightAngle: number;
@@ -182,6 +184,7 @@ export function buildMascotV2Scene(input: MascotV2SceneInput): MascotScene {
   const clips: MascotClip[] = [];
   const light = cameraLight(input.lightAngle, input.camera.yaw);
   const shading = input.shading ?? DRAWN_SHADING;
+  const gear = input.gear ?? { armbands: true, headband: true };
   // Shading off leaves the flat drawn colours (the far limbs still go darker side-on: the depth cue).
   const wash = shading.visible ? backlightWash(light) : 0;
   const lit = (palette: MascotPalette) => (shading.visible ? litPalette(palette, light) : palette);
@@ -201,6 +204,8 @@ export function buildMascotV2Scene(input: MascotV2SceneInput): MascotScene {
    * to it), the drawn highlights are placed for the light, and the drawn shade is dropped.
    */
   const pushPiece = (id: string, layers: readonly MascotV2Layer[], map: PointMap, lighting: PieceLighting, body: MascotPalette = bodyRaw) => {
+    // MascotVM's gear switches leave the headband or the armbands off.
+    if ((id === "headband" && !gear.headband) || (id.endsWith("-armband") && !gear.armbands)) return;
     const bodyLit = lit(body);
     const placed = layers.map((layer) => layer.shapes.map((shape) => world(mapPath(parsePath(shape.d), map))));
     const shaded = layers.flatMap((layer, l) =>

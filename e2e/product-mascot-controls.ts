@@ -65,25 +65,35 @@ async function prepareBranch(page: Page, target: string): Promise<void> {
   if (target === t.armRightTwist) await pressRange(controlByTarget(page, t.armRightElbow), "End");
   // The light's turn is clearest in the cast shadow.
   if (target === t.lightAngle) await setSwitch(page, t.castVisible, true);
+  // Auto eyes and mouth show the happy face by default, the same as Open and Happy; with no step
+  // data they show the confused face, so every eye set and mouth renders differently.
+  if (target === t.faceEyes || target === t.faceMouth) await setSwitch(page, t.vmHasStepData, false);
 }
+
+/**
+ * Sliders set by typing one absolute value (one Undo step): the wave phase is periodic (360° looks
+ * like 0°), and Pace's default (100, Idle) and its maximum (150) are both Idle, so it goes to
+ * 70 (Walking).
+ */
+const TYPED_SLIDER_VALUES: Readonly<Record<string, string>> = { [t.hairWavePhase]: "90", [t.vmPace]: "70" };
 
 type ControlAction = (control: Locator, page: Page) => Promise<void>;
 
 function changeAction(control: SchemaControl): ControlAction {
   switch (control.type) {
-    case "slider":
-      // The wave phase is periodic (360° looks like 0°), so set a quarter turn instead.
-      if (control.target === t.hairWavePhase) {
+    case "slider": {
+      const typed = TYPED_SLIDER_VALUES[control.target];
+      if (typed !== undefined) {
         return async (locator) => {
-          // Type the value so it is one absolute edit (one Undo step).
           await locator.getByRole("button", { name: /^Edit .* value$/ }).click();
           const field = locator.getByRole("textbox");
-          await field.fill("90");
+          await field.fill(typed);
           await field.press("Enter");
         };
       }
       // The saved defaults may sit at either end (Joint softness is saved at its maximum).
       return (locator) => pressRangeAway(locator);
+    }
     case "segmented": {
       const next = optionsOf(control).find((option) => option.value !== control.defaultValue)!;
       return (locator) => locator.getByRole("button", { name: next.label, exact: true }).click();
@@ -184,7 +194,7 @@ async function proveKeyframes(
   await expect(page.locator('[data-slot="timeline-keyframe"]')).toHaveCount(1);
   // Editing at the end updates the selected keyframe, so its value now drives the evaluated output.
   // A typed value or a press on a pad starts with a click, which clears the selection, so it adds a keyframe at the end instead.
-  const typedEdit = control.target === t.hairWavePhase || control.type === "vector";
+  const typedEdit = control.target in TYPED_SLIDER_VALUES || control.type === "vector";
   await expectToolcraftTimelineKeyframes(
     session.observe(readKeyframeObservation),
     session.controlAction(control.target, async (current, currentPage) => {
