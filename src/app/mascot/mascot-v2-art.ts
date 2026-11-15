@@ -185,6 +185,27 @@ export function toeAt(yaw: number, side: MascotV2Side): number {
   return Math.abs(s) >= MIN_TOE ? s : (Math.sign(s) || (t < 0.5 ? a : b)) * MIN_TOE;
 }
 
+/** How far past square-on the toe must point away from the viewer before the foot goes behind the leg. */
+const AWAY_MARGIN = Math.sin((15 * Math.PI) / 180);
+
+/**
+ * The toe with the leg turned on its own axis by `turn` radians (positive takes the toe from
+ * forward toward the body's right, like the character's turn). The drawn direction (`toeAt`) is
+ * read as a heading, toward the viewer from the front half of the turn and away from the back
+ * half, turned, and seen again: `toe` as `toeAt` gives it (never shorter than `MIN_TOE`), and
+ * `behind` when the toe now points away from the viewer from the front half, so the foot goes
+ * behind the leg. (From the back half the drawings keep the foot over the leg.)
+ */
+export function turnedToeAt(yaw: number, side: MascotV2Side, turn: number): Readonly<{ behind: boolean; toe: number }> {
+  const drawn = toeAt(yaw, side);
+  if (turn === 0) return { behind: false, toe: drawn };
+  const facing = Math.cos((yaw * Math.PI) / 180) >= 0 ? 1 : -1;
+  const heading = Math.atan2(drawn, facing * Math.sqrt(Math.max(0, 1 - drawn * drawn))) + turn;
+  const s = Math.sin(heading);
+  const toe = Math.abs(s) >= MIN_TOE ? s : (Math.sign(s) || Math.sign(drawn)) * MIN_TOE;
+  return { behind: facing > 0 && Math.cos(heading) < -AWAY_MARGIN, toe };
+}
+
 /** The strand art for a turn: blended between the two nearest drawings, relative to each drawing's Hair_base. */
 export type MascotV2StrandArt = Readonly<{ base: Point; tube: MascotTube }>;
 const strandCache: Partial<Record<string, MascotV2StrandArt>> = {};

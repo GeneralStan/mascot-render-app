@@ -49,11 +49,13 @@ export const mascotTargets = {
   legLeftSwing: "legLeft.swing",
   legLeftKnee: "legLeft.knee",
   legLeftAnkle: "legLeft.ankle",
+  legLeftTurn: "legLeft.turn",
   legLeftLength: "legLeft.length",
   legRightRaise: "legRight.raise",
   legRightSwing: "legRight.swing",
   legRightKnee: "legRight.knee",
   legRightAnkle: "legRight.ankle",
+  legRightTurn: "legRight.turn",
   legRightLength: "legRight.length",
   lightAngle: "light.angle",
   shadingVisible: "shading.visible",
@@ -154,13 +156,14 @@ export type MascotArmPose = Readonly<{
   wrist: number;
 }>;
 
-/** One leg's 3D joints (degrees) and length. */
+/** One leg's 3D joints (degrees) and length. `turn` turns the whole leg on its own axis from the hip (the foot's direction): positive turns the toe out. */
 export type MascotLegPose = Readonly<{
   ankle: number;
   knee: number;
   length: number;
   raise: number;
   swing: number;
+  turn: number;
 }>;
 
 export type MascotSettings = Readonly<{
@@ -229,6 +232,8 @@ export const mascotRanges = {
   legSwing: { defaultValue: 0, hardMax: 180, hardMin: -180, max: 110, min: -60, step: 1 },
   knee: { defaultValue: 0, hardMax: 180, hardMin: -180, max: 150, min: -20, step: 1 },
   ankle: { defaultValue: 0, hardMax: 180, hardMin: -180, max: 60, min: -60, step: 1 },
+  // A full turn either way: the drawn direction differs by view (outward in front, forward from the side).
+  footTurn: { defaultValue: 0, hardMax: 180, hardMin: -180, max: 180, min: -180, step: 1 },
   // The drawn light (MASCOT_V2_DRAWN_LIGHT_ANGLE): from the left, a little above.
   lightAngle: { defaultValue: 160, hardMax: 360, hardMin: 0, max: 360, min: 0, step: 1 },
   // How far the shade reaches round each part; 1 = as drawn.
@@ -375,7 +380,7 @@ type ArmTargets = Readonly<{
   bandTilt: string; elbow: string; flipHand: string; hand: string; length: string; moneyBag: string; raise: string;
   straighten: string; swing: string; twist: string; wrist: string;
 }>;
-type LegTargets = Readonly<{ ankle: string; knee: string; length: string; raise: string; swing: string }>;
+type LegTargets = Readonly<{ ankle: string; knee: string; length: string; raise: string; swing: string; turn: string }>;
 
 function readArm(values: ValueRecord, targets: ArmTargets): MascotArmPose {
   const r = mascotRanges;
@@ -402,6 +407,7 @@ function readLeg(values: ValueRecord, targets: LegTargets): MascotLegPose {
     length: readNumber(values, targets.length, r.limbLength) / 100,
     raise: readNumber(values, targets.raise, r.legRaise),
     swing: readNumber(values, targets.swing, r.legSwing),
+    turn: readNumber(values, targets.turn, r.footTurn),
   };
 }
 
@@ -449,10 +455,10 @@ export function readMascotSettings(values: ValueRecord): MascotSettings {
       raise: t.armRightRaise, straighten: t.armRightStraighten, swing: t.armRightSwing, twist: t.armRightTwist, wrist: t.armRightWrist,
     }),
     legLeft: readLeg(values, {
-      ankle: t.legLeftAnkle, knee: t.legLeftKnee, length: t.legLeftLength, raise: t.legLeftRaise, swing: t.legLeftSwing,
+      ankle: t.legLeftAnkle, knee: t.legLeftKnee, length: t.legLeftLength, raise: t.legLeftRaise, swing: t.legLeftSwing, turn: t.legLeftTurn,
     }),
     legRight: readLeg(values, {
-      ankle: t.legRightAnkle, knee: t.legRightKnee, length: t.legRightLength, raise: t.legRightRaise, swing: t.legRightSwing,
+      ankle: t.legRightAnkle, knee: t.legRightKnee, length: t.legRightLength, raise: t.legRightRaise, swing: t.legRightSwing, turn: t.legRightTurn,
     }),
     lightAngle: readNumber(values, t.lightAngle, r.lightAngle),
     shading: {

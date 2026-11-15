@@ -45,7 +45,7 @@ function armPose(arm: MascotArmPose): MascotV2LimbPose {
 }
 
 function legPose(leg: MascotLegPose): MascotV2LimbPose {
-  return { ...MASCOT_V2_REST_POSE, bend: leg.knee, end: leg.ankle, length: leg.length, raise: leg.raise, swing: leg.swing };
+  return { ...MASCOT_V2_REST_POSE, bend: leg.knee, end: leg.ankle, length: leg.length, raise: leg.raise, swing: leg.swing, twist: leg.turn };
 }
 
 /**

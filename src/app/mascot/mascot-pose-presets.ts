@@ -37,6 +37,7 @@ function restPose(): PoseValues {
     values[t[`leg${side}Swing`]] = mascotRanges.legSwing.defaultValue;
     values[t[`leg${side}Knee`]] = mascotRanges.knee.defaultValue;
     values[t[`leg${side}Ankle`]] = mascotRanges.ankle.defaultValue;
+    values[t[`leg${side}Turn`]] = mascotRanges.footTurn.defaultValue;
     values[t[`leg${side}Length`]] = mascotRanges.limbLength.defaultValue;
   }
   return values;

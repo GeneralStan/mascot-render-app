@@ -99,9 +99,9 @@ const shapesOf = (layers: readonly MascotV2Layer[], role: string, keep: (fill?: 
   layers.filter((layer) => layer.role === role).flatMap((layer) => layer.shapes.filter((shape) => keep(shape.fill)).flatMap((shape) => polygons(shape.d)));
 
 /** The crescent model's shade for a rigid part in its drawing: the base minus the base moved by the shift. */
-function crescentOverlap(layers: readonly MascotV2Layer[], along: Point, radii: MascotRimRadii, keep?: (fill?: string) => boolean): number {
+function crescentOverlap(layers: readonly MascotV2Layer[], along: Point, radii: MascotRimRadii, keep?: (fill?: string) => boolean, joined = false): number {
   const base = shapesOf(layers, "base", keep);
-  const shift = crescentShift(MASCOT_V2_DRAWN_LIGHT, along, radii);
+  const shift = crescentShift(MASCOT_V2_DRAWN_LIGHT, along, radii, 1, joined);
   return overlap(base, (p) => !inside(base, { x: p.x - shift.x, y: p.y - shift.y }), shapesOf(layers, "shade"));
 }
 
@@ -167,26 +167,46 @@ describe("V2 re-lighting", () => {
       const i = art.tube.midline.reduce((best, p, j) => (Math.hypot(p.x - bandCentre.x, p.y - bandCentre.y) < Math.hypot(art.tube.midline[best]!.x - bandCentre.x, art.tube.midline[best]!.y - bandCentre.y) ? j : best), 0);
       const line = art.tube.midline, last = line.length - 1;
       results[`armband_${side}`] = crescentOverlap(band, sub(line[Math.min(last, i + 2)]!, line[Math.max(0, i - 2)]!), MASCOT_V2_RIM_RADII.armband);
-      results[`foot_${side}`] = crescentOverlap(front.parts[`foot_${side}`]!, sub(centreOf(front.parts[`foot_${side}`]!), front.pivots[`Ankle_${side}`]!), MASCOT_V2_RIM_RADII.foot);
+      // A foot grows out of its leg at the heel, so its heel takes no crescent (as drawn).
+      results[`foot_${side}`] = crescentOverlap(front.parts[`foot_${side}`]!, sub(centreOf(front.parts[`foot_${side}`]!), front.pivots[`Ankle_${side}`]!), MASCOT_V2_RIM_RADII.foot, undefined, true);
     }
     results.hand_open_L = crescentOverlap(front.parts.hand_open_L!, sub(centreOf(front.parts.hand_open_L!), front.pivots.Wrist_L!), MASCOT_V2_RIM_RADII.hand);
     for (const kind of ["arm", "leg"] as const) {
-      const art = limbArtFrom({ mirror: false, view: "front", yaw: 0 }, kind, "L");
-      const edges = tubeEdges(art.tube);
-      results[`${kind}_L`] = tubeOverlap(edges, shadeTube(edges, MASCOT_V2_DRAWN_LIGHT, limbHighlights(kind)).bands, front.parts[`${kind}_L`]!);
+      for (const side of ["L", "R"] as const) {
+        const art = limbArtFrom({ mirror: false, view: "front", yaw: 0 }, kind, side);
+        const edges = tubeEdges(art.tube);
+        results[`${kind}_${side}`] = tubeOverlap(edges, shadeTube(edges, MASCOT_V2_DRAWN_LIGHT, limbHighlights(kind, side)).bands, front.parts[`${kind}_${side}`]!);
+      }
     }
     for (const strand of STRANDS) {
       const tube = strandArtAt(0, strand).tube;
       const edges = tubeEdges(tube);
       results[strand] = tubeOverlap(edges, shadeStrand(edges, tube.midline, MASCOT_V2_DRAWN_LIGHT, strandHighlights(strand)).bands, front.parts[strand]!);
     }
-    // The head and bag carry a thin bottom band the drawing lacks, and the drawn feet differ from each other.
+    // The head and bag carry a thin bottom band the drawing lacks, the drawn feet differ from each
+    // other, and Arm_R's drawn shade is shaped unlike Arm_L's, so the tube's band matches it less.
     const floor: Record<string, number> = {
-      armband_L: 0.85, armband_R: 0.75, arm_L: 0.85, foot_L: 0.65, foot_R: 0.65, hand_open_L: 0.9, head: 0.85, headband: 0.95, leg_L: 0.95, moneyBag: 0.8,
+      armband_L: 0.85, armband_R: 0.75, arm_L: 0.85, arm_R: 0.6, foot_L: 0.7, foot_R: 0.65, hand_open_L: 0.9, head: 0.85, headband: 0.95, leg_L: 0.95, leg_R: 0.95,
+      moneyBag: 0.8,
       strand_1: 0.7, strand_2: 0.7, strand_3: 0.7, strand_4: 0.7, strand_5: 0.7,
     };
     for (const [part, value] of Object.entries(results)) expect(value, `${part} ${value.toFixed(2)}`).toBeGreaterThanOrEqual(floor[part]!);
   }, 30_000);
+
+  it("gives each limb its own drawn highlight: Arm_R's sits further down the arm than Arm_L's", () => {
+    const left = limbHighlights("arm", "L")[0]!, right = limbHighlights("arm", "R")[0]!;
+    expect(right.from).toBeGreaterThan(left.to);
+    for (const kind of ["arm", "leg"] as const) {
+      for (const side of ["L", "R"] as const) {
+        // Each highlight lies along the drawn stroke of its own limb.
+        const art = limbArtFrom({ mirror: false, view: "front", yaw: 0 }, kind, side);
+        const stroke = parsePath(front.parts[`${kind}_${side}`]!.find((layer) => layer.role === "highlight")!.shapes[0]!.d).flatMap((s) => (s.kind === "Z" ? [] : [s.to]));
+        const middle = art.tube.midline[Math.round((limbHighlights(kind, side)[0]!.from + limbHighlights(kind, side)[0]!.to) / 2)]!;
+        const drawnMiddle = stroke.reduce((sum, p) => ({ x: sum.x + p.x / stroke.length, y: sum.y + p.y / stroke.length }), { x: 0, y: 0 });
+        expect(Math.hypot(middle.x - drawnMiddle.x, middle.y - drawnMiddle.y), `${kind}_${side}`).toBeLessThan(12);
+      }
+    }
+  });
 
   it("puts a rigid part's shade away from the light, for every light angle and orbit, and moves it smoothly", () => {
     for (const yaw of [-60, 0, 45, 150]) {

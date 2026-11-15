@@ -61,6 +61,7 @@ Put bones on the dots. Don't bind, animate or export the dots.
 Face, on Mascot_Front and Mascot_ThreeQuarter: Body > face holds the eye groups and mouth groups, stacked and already lined up. Show exactly one eye group and one mouth group at a time, and hide the rest. The default is eyes_open and mouth_happy. They all arrive from Figma visible, so hide the rest first. Mascot_Back has no face. Mascot_Side has one eye and one mouth only.
 - Each V2 view draws eyes_open and mouth_happy. mouth_happy includes a soft shadow, a second stroke that fades out.
 - Every other expression is drawn in Faces_V2 (node 293:1448, front view only), one group per face, each with its eyes, Mouth and mouth_shadow: face_happy, face_Excited, face_satisfied, face_sleepy, face_disappointed, face_confused and face_angry. face_angry's eye group is still named eyes_tired in Figma; it holds eyes_angry.
+- Faces_V2's mouth_shadow is drawn #687773 at 20%, which barely shows. The user wants it in the body shade #C94631 at full opacity (2026-11-15); Mascot Lab draws it that way.
 - eyes_sad isn't drawn in V2 yet. Reuse the V1 group until it is.
 - Eyes: eyes_open, eyes_blink, eyes_tired, eyes_sad, eyes_curious, eyes_angry
 - Mouths: mouth_happy, mouth_excited, mouth_neutral, mouth_sad
@@ -83,6 +84,8 @@ Rig:
 - The body bone has no pivot dot. Root it at the bottom centre of the body.
 - Body, face, hair and Headband follow the body bone rigidly. Each hair strand can get its own bone from Hair_base for follow-through.
 - Feet follow the ankle. Armbands and hands follow the lower arm bone. Money bags follow their hand, with a little lag so they swing.
+- Mascot Lab's Foot direction turns a whole leg on its own axis: the foot shortens along its length as the toe turns toward or away from the viewer, a bent knee's bend turns with it, and a toe turned away goes behind the leg. In Rive, scale the foot along its length about the ankle, and draw it under the leg when the toe turns away.
+- The heel tucks into the leg's end. Keep each foot over its leg, as drawn.
 - On 3/4 and Side the near arm must look attached to the shoulder. Don't let its top end draw a line across the body.
 - Rive can't re-light, so the drawn shade and highlight bend with the bones. Mascot Lab re-lights every part in code.
 

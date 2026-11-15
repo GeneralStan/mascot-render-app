@@ -32,6 +32,7 @@ import { centreOf } from "./mascot-v2-art";
 import { faceAt } from "./mascot-v2-face";
 import { headbandTiltMap } from "./mascot-hair";
 import { add } from "./mascot-geometry";
+import { heelShade } from "./mascot-heel";
 import {
   affineMap,
   composeAffine,
@@ -111,7 +112,8 @@ const FLOOR_FADE = (15 * Math.PI) / 180;
 const radians = (degrees: number) => (degrees * Math.PI) / 180;
 
 /** A rigid piece's lighting: its axis on screen, given its centre, and how rounded it is. */
-type PieceLighting = Readonly<{ along: (centre: Point) => Point; radii: MascotRimRadii }>;
+/** How a drawn piece is re-lit: its axis, its rim radii, and whether it grows out of its limb at the back of the axis (a foot). */
+type PieceLighting = Readonly<{ along: (centre: Point) => Point; joined?: boolean; radii: MascotRimRadii }>;
 
 const sub = (a: Point, b: Point): Point => ({ x: a.x - b.x, y: a.y - b.y });
 const polygonPath = (points: readonly Point[]): ParsedPath => [
@@ -120,6 +122,8 @@ const polygonPath = (points: readonly Point[]): ParsedPath => [
   { kind: "Z" },
 ];
 const polylinePath = (points: readonly Point[]): ParsedPath => [{ kind: "M", to: points[0]! }, ...points.slice(1).map((to) => ({ kind: "L" as const, to }))];
+/** A path's points, control points included. */
+const pathPoints = (path: ParsedPath): Point[] => path.flatMap((s) => (s.kind === "Z" ? [] : s.kind === "C" ? [s.c1, s.c2, s.to] : [s.to]));
 function boundsCentre(paths: readonly ParsedPath[]): Point {
   const bounds = emptyBounds();
   for (const path of paths) includePath(bounds, path);
@@ -177,7 +181,7 @@ export function buildMascotV2Scene(input: MascotV2SceneInput): MascotScene {
   const ground = emptyBounds();
   for (const limb of limbs.filter((l) => l.kind === "leg")) {
     includePath(ground, parsePath(limb.fill));
-    for (const piece of limb.front) {
+    for (const piece of [...limb.front, ...limb.behind]) {
       for (const shape of piece.layers.filter((l) => l.role === "base").flatMap((l) => l.shapes)) {
         includePath(ground, mapPath(parsePath(shape.d), affineMap(piece.transform)));
       }
@@ -234,7 +238,7 @@ export function buildMascotV2Scene(input: MascotV2SceneInput): MascotScene {
     );
     const centre = boundsCentre(shaded.length > 0 ? shaded : placed.flat());
     const along = lighting.along(centre);
-    const shift = crescentShift(light, along, sized(lighting.radii), scale);
+    const shift = crescentShift(light, along, sized(lighting.radii), scale, lighting.joined);
     const nudged = shaded.map((path) => mapPath(path, (p) => add(p, shift)));
     const wholeClip = shaded.length > 0 ? clipTo(`${id}-whole`, shaded) : undefined;
     layers.forEach((layer, l) => {
@@ -323,7 +327,7 @@ export function buildMascotV2Scene(input: MascotV2SceneInput): MascotScene {
     const lightingFor = (pieceId: string): PieceLighting => {
       if (pieceId.endsWith("-money-bag")) return { along: (centre) => sub(centre, handCentre), radii: MASCOT_V2_RIM_RADII.moneyBag };
       if (pieceId.endsWith("-armband")) return { along: tangentNear, radii: MASCOT_V2_RIM_RADII.armband };
-      if (pieceId.endsWith("-foot")) return { along: (centre) => sub(centre, wrist), radii: MASCOT_V2_RIM_RADII.foot };
+      if (pieceId.endsWith("-foot")) return { along: (centre) => sub(centre, wrist), joined: true, radii: MASCOT_V2_RIM_RADII.foot };
       return { along: (centre) => sub(centre, wrist), radii: MASCOT_V2_RIM_RADII.hand };
     };
     for (const piece of limb.behind) pushPiece(piece.id, piece.layers, affineMap(piece.transform), lightingFor(piece.id), raw);
@@ -342,9 +346,37 @@ export function buildMascotV2Scene(input: MascotV2SceneInput): MascotScene {
     silhouette.push(fill);
     const shift = edgeA.length - rawA.length;
     // A blended root's shade tapers in with the outline, and its highlights start past the blend.
-    const highlights = limbHighlights(limb.kind).map((h) => ({ ...h, from: Math.max(h.from + shift, blend?.end ?? 0), to: h.to + shift }));
-    pushTubeShading(limb.id, fillPath, shadeTube([worldA, worldB], light, highlights, shading.size, blend?.weights), highlights, palette);
-    for (const piece of limb.front) pushPiece(piece.id, piece.layers, affineMap(piece.transform), lightingFor(piece.id), raw);
+    const highlights = limbHighlights(limb.kind, limb.side).map((h) => ({ ...h, from: Math.max(h.from + shift, blend?.end ?? 0), to: h.to + shift }));
+    const tubeShading = shadeTube([worldA, worldB], light, highlights, shading.size, blend?.weights);
+    pushTubeShading(limb.id, fillPath, tubeShading, highlights, palette);
+    for (const piece of limb.front) {
+      if (!piece.id.endsWith("-foot") || !shading.visible) {
+        pushPiece(piece.id, piece.layers, affineMap(piece.transform), lightingFor(piece.id), raw);
+        continue;
+      }
+      // The leg's shade carries on round the heel, as drawn (`mascot-heel.ts`).
+      const map = affineMap(piece.transform);
+      const base = piece.layers.filter((l) => l.role === "base").flatMap((l) => l.shapes.map((shape) => world(mapPath(parsePath(shape.d), map))));
+      const origin = toWorld(map({ x: 0, y: 0 }));
+      const lighting = lightingFor(piece.id);
+      const heel = heelShade({
+        ankle: wrist,
+        axis: sub(toWorld(map({ x: 1, y: 0 })), origin),
+        bands: tubeShading.bands,
+        foot: base.flatMap(pathPoints),
+        knee: toWorld(limb.joints.mid),
+        leg: [worldA, worldB],
+        lift: sub(toWorld(map({ x: 0, y: 1 })), origin),
+        shift: crescentShift(light, lighting.along(boundsCentre(base)), sized(lighting.radii), scale, lighting.joined),
+      });
+      const shade = { color: palette.shade, kind: "fill" as const };
+      heel.under.forEach((part, k) => painted.push({ id: `${piece.id}-heel-under-${k}`, paint: shade, path: polygonPath(part) }));
+      pushPiece(piece.id, piece.layers, map, lighting, raw);
+      if (base.length === 0) continue;
+      const clipId = clipTo(`${piece.id}-heel`, base);
+      heel.lit.forEach((part, k) => painted.push({ clipId, id: `${piece.id}-heel-lit-${k}`, paint: { color: lit(raw).base, kind: "fill" }, path: polygonPath(part) }));
+      heel.over.forEach((part, k) => painted.push({ clipId, id: `${piece.id}-heel-shade-${k}`, paint: shade, path: polygonPath(part) }));
+    }
   };
 
   const byDepth = (a: MascotV2PosedLimb, b: MascotV2PosedLimb) => a.depth - b.depth;

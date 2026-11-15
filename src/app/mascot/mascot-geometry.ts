@@ -151,3 +151,17 @@ export function filletCubic(from: Cubic, to: Cubic, joint: Point): Cubic {
   const handleOut = (2 / 3) * length(sub(q, joint));
   return [p, add(p, scale(endDirection(from), handleIn)), sub(q, scale(startDirection(to), handleOut)), q];
 }
+
+/**
+ * The part of a polygon behind a line: the points p with (p − origin)·ahead ≤ 0, as one
+ * polygon (Sutherland–Hodgman against a single edge). Empty when it is all ahead.
+ */
+export function behindLine(polygon: readonly Point[], origin: Point, ahead: Point): Point[] {
+  const side = (p: Point) => (p.x - origin.x) * ahead.x + (p.y - origin.y) * ahead.y;
+  return polygon.flatMap((p, i) => {
+    const q = polygon[(i + 1) % polygon.length]!;
+    const a = side(p), b = side(q);
+    const kept = a <= 0 ? [p] : [];
+    return (a < 0 && b > 0) || (a > 0 && b < 0) ? [...kept, lerpPoint(p, q, a / (a - b))] : kept;
+  });
+}

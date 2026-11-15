@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { parsePath } from "./mascot-path";
 import { faceAt } from "./mascot-v2-face";
-import { mascotV2Views } from "./mascot-v2-parts";
+import { mascotV2Colors, mascotV2Views } from "./mascot-v2-parts";
 
 type Box = { h: number; w: number; x: number; y: number };
 function boxOf(ds: readonly string[]): Box {
@@ -50,6 +50,17 @@ describe("V2 face turning", () => {
     }
     expect(eye(80, "far")).toBeNull();
     expect(eye(-80, "far")).toBeNull();
+  });
+
+  it("draws the Faces_V2 mouths' shadow in the body's shade colour at full strength, so it shows on the body", () => {
+    for (const mouth of ["excited", "neutral", "sad"] as const) {
+      const shadow = faceAt(0, "open", mouth).filter((part) => part.id.startsWith("mouth-shadow"));
+      expect(shadow.length, mouth).toBeGreaterThan(0);
+      for (const part of shadow) {
+        expect(part.fill).toBe(mascotV2Colors.bodyShade);
+        expect(part.opacity).toBeUndefined();
+      }
+    }
   });
 
   it("turns the mouth smoothly from the front smile to the profile mouth", () => {

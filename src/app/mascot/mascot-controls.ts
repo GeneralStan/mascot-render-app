@@ -384,7 +384,7 @@ function armSection(id: string, title: string, targets: ArmTargets): ControlsSec
   };
 }
 
-type LegTargets = Readonly<{ ankle: string; knee: string; length: string; raise: string; swing: string }>;
+type LegTargets = Readonly<{ ankle: string; knee: string; length: string; raise: string; swing: string; turn: string }>;
 
 function legSection(id: string, title: string, targets: LegTargets): ControlsSection {
   return {
@@ -393,6 +393,12 @@ function legSection(id: string, title: string, targets: LegTargets): ControlsSec
       swing: angle(targets.swing, "Swing", mascotRanges.legSwing, "Swings the leg forward (positive) or back."),
       knee: angle(targets.knee, "Knee", mascotRanges.knee, "Bends the shin back at the knee."),
       ankle: angle(targets.ankle, "Ankle", mascotRanges.ankle, "Tips the foot at the ankle; positive lifts the toe."),
+      turn: angle(
+        targets.turn,
+        "Foot direction",
+        mascotRanges.footTurn,
+        "Turns the whole leg on its own axis from the hip, so the foot points that way and a bent knee bends with it: 0° as drawn, positive turns the toe out, negative in.",
+      ),
       length: slider(targets.length, "Length", mascotRanges.limbLength, {
         description: "Lengthens or shortens the leg; the foot keeps its size and stays on the floor, and a bent leg keeps this length.",
         unit: "%",
@@ -423,6 +429,7 @@ const legTargets = (side: "Left" | "Right"): LegTargets => ({
   length: t[`leg${side}Length`],
   raise: t[`leg${side}Raise`],
   swing: t[`leg${side}Swing`],
+  turn: t[`leg${side}Turn`],
 });
 
 export const armLeftSection = armSection("arm-left", "Left Arm", armTargets("Left"));

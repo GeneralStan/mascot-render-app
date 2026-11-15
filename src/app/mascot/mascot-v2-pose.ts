@@ -2,8 +2,8 @@
  * Poses the V2 arms and legs.
  *
  * Bones are built in 3D from the rest rig at the current turn, posed with the
- * existing controls (raise, swing, elbow or knee, twist, wrist or ankle,
- * straighten, length), then projected. The drawn tube is fitted onto the
+ * existing controls (raise, swing, elbow or knee, twist or a leg's foot direction,
+ * wrist or ankle, straighten, length), then projected. The drawn tube is fitted onto the
  * projected bones: along each bone it scales with the bone's on-screen length,
  * and across it only partly, so the drawn curve survives. The character's joints
  * are very soft: the bend a pose adds is spread along the limb, turning the drawn
@@ -18,7 +18,7 @@
  * tubes blend between the two nearest drawings, and the rigid pieces come from the
  * nearer one, each placed from the frame it was drawn in. The hand (open, fist or
  * thumbs-up) and the money bag ride the wrist, the armband the forearm, and the foot
- * the ankle, its toe easing between the drawn directions.
+ * the ankle, its toe easing between the drawn directions and turning with the leg.
  *
  * Limbs are trimmed at the shoulder or hip. That end stays open in the outline,
  * so a limb in front of the body (the 3/4 near arm) looks attached.
@@ -44,7 +44,7 @@ import {
   baseShapes,
   centreOf,
   limbArtAt,
-  toeAt,
+  turnedToeAt,
   type MascotV2LimbKind,
   type MascotV2RigidArt,
   type MascotV2Side,
@@ -55,7 +55,10 @@ import { MASCOT_V2_BODY_PIVOT, restJointsAt, turnPoint, type Vec3 } from "./masc
 export type { MascotV2LimbKind, MascotV2Side };
 export type MascotV2Hand = "open" | "fist" | "thumbsUp";
 
-/** One limb's pose. Angles are in degrees; `bend` is the elbow or knee and `end` the wrist or ankle. */
+/**
+ * One limb's pose. Angles are in degrees; `bend` is the elbow or knee and `end` the wrist or
+ * ankle. `twist` turns the limb on its own axis: an arm's Twist, a leg's Foot direction.
+ */
 export type MascotV2LimbPose = Readonly<{
   bandTilt: number;
   bend: number;
@@ -254,6 +257,8 @@ export function poseV2Limb(input: MascotV2LimbInput): MascotV2PosedLimb {
   const art = limbArtAt(camera.yaw, kind, side);
   const mirror = side === "L" ? 1 : -1;
   const screenSign = art.screenLeft ? 1 : -1;
+  /** A leg's turn about the vertical (radians, positive toward screen right from the front): Foot direction, positive toe-out. */
+  const legTurn = kind === "leg" ? radians(pose.twist) * -mirror : 0;
   const [rootName, midName, endName] = jointNames(kind, side);
 
   // 3D bones from the rest rig at this turn.
@@ -288,9 +293,11 @@ export function poseV2Limb(input: MascotV2LimbInput): MascotV2PosedLimb {
     // The forearm or shin turns from its own rest direction toward the bend direction. (Hinging
     // on the upper bone instead would tip the drawn forearm toward the camera, since the drawn
     // elbow sits behind the shoulder, and shorten it on screen.)
+    // An arm's Twist sets the way its elbow bends; a leg's turn (Foot direction) turns its knee's
+    // bend with the foot, positive toward the toe-out side.
     const outward: Vec3 = { x: -mirror, y: 0, z: 0 };
     const twist = radians(pose.twist);
-    const toward = kind === "arm" ? add3({ x: 0, y: 0, z: Math.cos(twist) }, scale3(outward, Math.sin(twist))) : { x: 0, y: 0, z: -1 };
+    const toward = kind === "arm" ? add3({ x: 0, y: 0, z: Math.cos(twist) }, scale3(outward, Math.sin(twist))) : rotateY({ x: 0, y: 0, z: -1 }, legTurn);
     const axis = cross3(scale3(lowerBone, 1 / Math.max(len3(lowerBone), 1e-6)), atRoot(toward));
     if (len3(axis) > 1e-6) lowerBone = rotateAround(lowerBone, scale3(axis, 1 / len3(axis)), radians(pose.bend));
   }
@@ -413,11 +420,12 @@ export function poseV2Limb(input: MascotV2LimbInput): MascotV2PosedLimb {
     const bandAngle = angleOf(tubeTangents(midline)[band.sample]!) + radians(pose.bandTilt) * screenSign;
     front.push({ id: `${kind}-${side}-armband`, layers: band.layers, transform: placePiece(band, midline[band.sample]!, bandAngle) });
   } else {
-    // The foot's toe eases between the drawn directions (outward in front and back, forward in 3/4 and side).
+    // The foot's toe eases between the drawn directions (outward in front and back, forward in 3/4
+    // and side), and turns with the leg; pointing away from the viewer it goes behind the leg.
     const foot = art.foot!;
-    const toe = toeAt(camera.yaw, side) * foot.toe;
-    const transform = placePiece(foot, endS, endAngle, scaleAffineAround(toe, 1, foot.anchor));
-    front.push({ id: `${kind}-${side}-foot`, layers: foot.layers, transform });
+    const turned = turnedToeAt(camera.yaw, side, legTurn);
+    const transform = placePiece(foot, endS, endAngle, scaleAffineAround(turned.toe * foot.toe, 1, foot.anchor));
+    (turned.behind ? behind : front).push({ id: `${kind}-${side}-foot`, layers: foot.layers, transform });
   }
 
   return {

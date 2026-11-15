@@ -885,6 +885,21 @@ Clutch Mascot Lab poses and shades the Clutch mascot ("Clutchman"), rebuilt as a
   - Risk: the band's lean from above and the hair's lean are art-direction choices matched to the AI renders, not to a drawing.
   - Risk: the readable-stride swing is an animation cheat; Mascot Lab poses at 3/4 won't match a strictly 3D rig.
 
+### Iteration 22 — Right arm highlight, Faces_V2 mouth shadow, heel shading, Foot direction
+
+- Change ID: clutch-feet-highlight-mouth-shadow
+- Active change: clutch-feet-highlight-mouth-shadow
+- Request: "Image 1: the highlight for the right arm is off. Image 2: the shadow under the mouth is not visible and i think is using the wrong color, pls fix this. Image 3 & 4: there's a weird shading on the left foot and right foot. Add a control that allows adjust the direction the feet (and by extension, the legs) are pointing in, the ankle slider control is not enough." Answers: "Whole leg from the hip", "One per leg", mouth shadow "Body shade colour".
+- Changed owners: `mascot-relight.ts` (per-side limb highlights; `crescentShift` `joined`), `mascot-heel.ts` (new), `mascot-v2-scene.ts` (heel shading, foot grounding), `mascot-v2-face.ts` (mouth shadow), `mascot-v2-art.ts` (`turnedToeAt`), `mascot-v2-pose.ts` (leg turn), `mascot-settings.ts` / `mascot-controls.ts` / `mascot-scene.ts` / `mascot-pose-presets.ts` / `app-defaults.json` (`legLeft.turn`, `legRight.turn`).
+- Result:
+  - **Right arm highlight:** both arms used Arm_L's drawn highlight; each limb now uses its own (Arm_R's sits lower, on the inner side, as drawn).
+  - **Mouth shadow:** Faces_V2 draws it #687773 at 20%, which vanishes on the body; it now takes the body shade #C94631 at full strength (the plain smile keeps Standing's own soft shadow).
+  - **Feet (root cause):** the foot is re-lit as a copy moved toward the light, which left a crescent at the heel end, a sliver of lit leg between it and the leg's shade band, and, foreshortened, the look of a cylinder's end. As drawn, the heel is tucked into the leg: the foot only shades along its sole, and the band's edge curves round the heel's lower half to the floor. Now the heel takes no crescent (`joined`), stays lit down to the sole's strip, and on the band's side the leg's shade carries on over the heel and round under it (`mascot-heel.ts`); on the toe's side the foot covers the band, as drawn.
+  - **Foot direction (new, per leg, ±180°, default 0):** turns the whole leg on its own axis. The toe turns from the drawn direction (read as a heading toward the viewer from the front half), shortening as it swings toward or away from the viewer (never below the 45% floor) and crossing over past it; a toe turned away goes behind the leg; a bent knee's bend turns with it. Stand resets it.
+- Verification (focused): `npx vitest run src/app/mascot` (all pass, incl. new `mascot-feet.test.ts`, per-side highlight and mouth-shadow tests; the shade-match test now also covers Arm_R and Leg_R, and the feet score higher with the joined heel); `npx tsc --noEmit`; `npx vite build && TOOLCRAFT_BROWSER_SERVER_MODE=preview npx playwright test e2e/product-legLeft.spec.ts e2e/product-legRight.spec.ts e2e/product-face.spec.ts e2e/product-pose.spec.ts --workers=1` (15/15, incl. legLeft.turn and legRight.turn); live app: Foot direction −130° on both legs set through the panel turns the feet pigeon-toed (`.toolcraft/browser-artifacts/ui-feet-pigeon.png`). `ai:check` still reports only the pre-existing SVG export conflict and `app-acceptance-data.ts` at 704/700 lines (unchanged since Iteration 20).
+- Risks:
+  - Risk: the drawings show feet side-on in almost every view, so turning a toe in or out by the same angle shortens it the same; only which side of the leg it's drawn on tells them apart.
+
 ## Decisions
 
 ### Renderer
@@ -923,7 +938,7 @@ Clutch Mascot Lab poses and shades the Clutch mascot ("Clutchman"), rebuilt as a
 
 ### Controls
 
-- Decision: Sections View, View Model (MascotVM: Pace, Step data, Time of day, Headband, Armbands, Reaction), Body (Stand/Walk/Cash jump Pose actions and Turn), Body Pivot (the Position pad, shown in the preview as the pivot marker), Face (Eyes and Mouth, Auto by default), one section per limb (with Hand and Money bag on the arms), Light, Body Shading (Visible, Size, Highlight), Ground/Cast/Drop Shadow.
+- Decision: Sections View, View Model (MascotVM: Pace, Step data, Time of day, Headband, Armbands, Reaction), Body (Stand/Walk/Cash jump Pose actions and Turn), Body Pivot (the Position pad, shown in the preview as the pivot marker), Face (Eyes and Mouth, Auto by default), one section per limb (with Hand and Money bag on the arms, Foot direction on the legs), Light, Body Shading (Visible, Size, Highlight), Ground/Cast/Drop Shadow.
 - Reason: Grouped by the mascot entity each control edits and by shadow kind.
 - Evidence: `src/app/mascot/mascot-controls.ts`, `appControlSectionInventory`.
 

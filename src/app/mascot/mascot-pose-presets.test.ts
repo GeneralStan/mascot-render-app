@@ -67,9 +67,11 @@ describe("mascot pose presets", () => {
       [t.bodyTurn]: 0,
       [t.faceEyes]: "auto",
       [t.faceMouth]: "auto",
+      [t.legLeftTurn]: 0,
+      [t.legRightTurn]: 0,
     });
-    // Standing after a cash jump is the default mascot again.
-    const afterJump = { ...applied(MASCOT_POSE_ACTIONS.cashJump), ...values, [t.bodySoftness]: 18 };
+    // Standing after a cash jump (feet turned) is the default mascot again.
+    const afterJump = { ...applied(MASCOT_POSE_ACTIONS.cashJump), [t.legLeftTurn]: 40, [t.legRightTurn]: -25, ...values, [t.bodySoftness]: 18 };
     expect(JSON.stringify(buildMascotScene(readMascotSettings(afterJump)))).toBe(JSON.stringify(buildMascotScene(readMascotSettings({}))));
   });
 

@@ -224,10 +224,15 @@ function v2Eye(kind: Exclude<MascotEyes, "sad">, side: 0 | 1): Readonly<{ offset
   return { offset: { x: fromPair.x - openFromPair.x, y: fromPair.y - openFromPair.y + EYE_SHIFT_Y[kind] }, shapes: shapesOf(mascotV2Faces[EYES_FROM[kind]].eyes[side]) };
 }
 
-/** A drawn mouth with its shadow, and its offset from the smile's centre. */
+/**
+ * A drawn mouth with its shadow, and its offset from the smile's centre. Faces_V2 draws the
+ * shadow grey-green at 20%, which all but vanishes on the orange body, so it takes the body's own
+ * shade colour at full strength instead, like the drawing's other shade shapes (the user's choice).
+ */
 function v2Mouth(kind: Exclude<MascotMouth, "happy">): Readonly<{ mouth: readonly MascotV2Shape[]; offset: Point; shadow: readonly MascotV2Shape[] }> {
   const face = mascotV2Faces[MOUTH_FROM[kind]];
-  return { mouth: shapesOf(face.mouth), offset: minus(MOUTH_AT[kind], MOUTH_AT.happy), shadow: shapesOf(face.shadow) };
+  const shadow = shapesOf(face.shadow).map((shape) => ({ d: shape.d, fill: mascotV2Colors.bodyShade }));
+  return { mouth: shapesOf(face.mouth), offset: minus(MOUTH_AT[kind], MOUTH_AT.happy), shadow };
 }
 
 /** A polyline as a path. */

@@ -58,7 +58,7 @@ Faces_V2 replaces the line in CLAUDE.md that used to say to reuse the V1 face gr
 | face_confused | eyes_curious | mouth_neutral (flat, tilted line) | hasStepData false |
 | face_angry | eyes_angry (still named eyes_tired in Figma; rename it) | mouth_sad | no state yet |
 
-Every mouth has a `mouth_shadow`: a soft stroke in #687773 at 20% opacity. It is part of the drawing; keep it.
+Every Faces_V2 mouth has a `mouth_shadow`, drawn in #687773 at 20% opacity, which barely shows on the coral body. I want it in the body shade #C94631 at 100% opacity, as Mascot Lab draws it: recolour its fill and opacity only, keeping its shape. mouth_happy's own soft shadow (a fading stroke) stays as drawn.
 
 The sad face (out) is eyes_sad + mouth_sad. eyes_sad isn't drawn in V2 yet, so reuse the V1 eyes_sad group from the old Mascot_Front until it is.
 

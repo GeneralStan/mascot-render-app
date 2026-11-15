@@ -159,11 +159,15 @@ export function darkerBody(t: number): MascotPalette {
 /**
  * The crescent shift for a rigid part: the shade is the base minus a copy moved by this
  * vector, toward the light. `along` is the part's axis on screen; `scale` the world scale.
+ * A `joined` part (a foot) grows out of its limb at the back end of `along`: the copy never
+ * slides off that end, so it takes the limb's own shading instead of a crescent of its own
+ * (as drawn, where the heel meets the leg's shade with no shade of its own).
  */
-export function crescentShift(light: MascotLight, along: Point, radii: MascotRimRadii, scale = 1): Point {
+export function crescentShift(light: MascotLight, along: Point, radii: MascotRimRadii, scale = 1, joined = false): Point {
   const A = unit(along), a = { x: -A.y, y: A.x };
   const across = radii.across * terminatorShare(dot2(light, a), light.z);
-  const lengthwise = radii.along * terminatorShare(dot2(light, A), light.z);
+  const free = radii.along * terminatorShare(dot2(light, A), light.z);
+  const lengthwise = joined ? Math.min(0, free) : free;
   return { x: (a.x * across + A.x * lengthwise) * scale, y: (a.y * across + A.y * lengthwise) * scale };
 }
 
@@ -378,13 +382,16 @@ const highlightCache: Partial<Record<string, readonly MascotTubeHighlight[]>> = 
 /** The light the drawing was made under, seen from the front. */
 export const MASCOT_V2_DRAWN_LIGHT: MascotLight = cameraLight(MASCOT_V2_DRAWN_LIGHT_ANGLE, 0);
 
-/** The drawn highlights for a limb, from the front drawing's Arm_L or Leg_L (both sides match the left). */
-export function limbHighlights(kind: "arm" | "leg"): readonly MascotTubeHighlight[] {
-  return (highlightCache[kind] ??= buildLimbHighlights(kind));
+/**
+ * The drawn highlights for a limb, from the front drawing's own Arm_L, Arm_R, Leg_L or Leg_R: the
+ * two sides are drawn differently (Arm_R's sits lower down the arm than Arm_L's).
+ */
+export function limbHighlights(kind: "arm" | "leg", side: "L" | "R"): readonly MascotTubeHighlight[] {
+  return (highlightCache[`${kind}_${side}`] ??= buildLimbHighlights(kind, side));
 }
-function buildLimbHighlights(kind: "arm" | "leg"): readonly MascotTubeHighlight[] {
-  const art = limbArtFrom({ mirror: false, view: "front", yaw: 0 }, kind, "L");
-  return drawnTubeHighlights(`${kind}_L`, tubeEdges(art.tube), (cut) => specular(dot2(MASCOT_V2_DRAWN_LIGHT, cut.u), MASCOT_V2_DRAWN_LIGHT.z));
+function buildLimbHighlights(kind: "arm" | "leg", side: "L" | "R"): readonly MascotTubeHighlight[] {
+  const art = limbArtFrom({ mirror: false, view: "front", yaw: 0 }, kind, side);
+  return drawnTubeHighlights(`${kind}_${side}`, tubeEdges(art.tube), (cut) => specular(dot2(MASCOT_V2_DRAWN_LIGHT, cut.u), MASCOT_V2_DRAWN_LIGHT.z));
 }
 
 /** The drawn highlights for a hair strand, from the front drawing. */
